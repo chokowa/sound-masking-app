@@ -965,15 +965,15 @@ stopBtn.addEventListener('click', () => {
 
 // Sound Definition
 const SOUND_ASSETS = [
-  { id: 'rain_window', url: '/sounds/rain_window.mp3' },
-  { id: 'rain_summer', url: '/sounds/rain_summer.mp3' },
-  { id: 'rain_green', url: '/sounds/rain_green.mp3' },
-  { id: 'underwater', url: '/sounds/underwater.mp3' },
-  { id: 'brown_noise_smooth', url: '/sounds/brown_noise_smooth.mp3' },
-  { id: 'spaceship', url: '/sounds/spaceship.mp3' },
-  { id: 'airplane', url: '/sounds/airplane.mp3' },
-  { id: 'rumble', url: '/sounds/rumble.mp3' },
-  { id: 'car_driving', url: '/sounds/car_driving.mp3' }
+  { id: 'rain_window', url: 'sounds/rain_window.mp3' },
+  { id: 'rain_summer', url: 'sounds/rain_summer.mp3' },
+  { id: 'rain_green', url: 'sounds/rain_green.mp3' },
+  { id: 'underwater', url: 'sounds/underwater.mp3' },
+  { id: 'brown_noise_smooth', url: 'sounds/brown_noise_smooth.mp3' },
+  { id: 'spaceship', url: 'sounds/spaceship.mp3' },
+  { id: 'airplane', url: 'sounds/airplane.mp3' },
+  { id: 'rumble', url: 'sounds/rumble.mp3' },
+  { id: 'car_driving', url: 'sounds/car_driving.mp3' }
 ];
 
 let soundsLoaded = false;
