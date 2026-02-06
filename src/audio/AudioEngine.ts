@@ -228,7 +228,14 @@ export class AudioEngine {
         if (this.inputScanParams.stream) return;
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    latency: 0
+                }
+            });
             this.inputScanParams.stream = stream;
             this.inputScanParams.source = this.ctx.createMediaStreamSource(stream);
             this.inputScanParams.analyser = this.ctx.createAnalyser();
