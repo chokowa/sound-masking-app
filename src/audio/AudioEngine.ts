@@ -1,4 +1,15 @@
 // AudioEngine.ts
+import { ImpactDetector, type DetectionCallbacks } from './ImpactDetector';
+
+// EQバンド定義
+const EQ_BANDS = [
+    { freq: 60, type: 'lowshelf' as BiquadFilterType },
+    { freq: 250, type: 'peaking' as BiquadFilterType },
+    { freq: 1000, type: 'peaking' as BiquadFilterType },
+    { freq: 4000, type: 'peaking' as BiquadFilterType },
+    { freq: 12000, type: 'highshelf' as BiquadFilterType }
+];
+
 // AudioWorklet Code (Embedded to avoid GitHub Pages loading issues)
 const processorCode = `
 class NoiseProcessor extends AudioWorkletProcessor {
