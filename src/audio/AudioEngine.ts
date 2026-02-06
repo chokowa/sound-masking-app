@@ -113,6 +113,10 @@ export class AudioEngine {
     // EQフィルター
     private eqFilters: BiquadFilterNode[] = [];
 
+    // Sub-Bass Generator (40-60Hz)
+    private subBassNode: OscillatorNode | null = null;
+    private subBassGainNode: GainNode | null = null;
+
     // マイク入力用
     private inputScanParams: {
         stream: MediaStream | null,
@@ -173,6 +177,15 @@ export class AudioEngine {
             this.noiseGainNode = this.ctx.createGain();
             this.noiseGainNode.gain.value = 1.0;
 
+            // Sub-Bass初期化
+            this.subBassNode = this.ctx.createOscillator();
+            this.subBassNode.type = 'sine';
+            this.subBassNode.frequency.value = 55.0; // 気持ちいい重低音
+            this.subBassGainNode = this.ctx.createGain();
+            this.subBassGainNode.gain.value = 0.0; // デフォルトOFF
+
+            this.subBassNode.start();
+
             // 3つのゲインノードを作成
             this.baseGainNode = this.ctx.createGain();
             this.adaptiveGainNode = this.ctx.createGain();
@@ -198,6 +211,10 @@ export class AudioEngine {
             // 接続: Noise -> NoiseGain -> EQ -> BaseGain -> AdaptiveGain -> ReactiveGain -> Analyser -> Output
             this.noiseNode.connect(this.noiseGainNode);
             this.noiseGainNode.connect(this.eqFilters[0]);
+
+            // Sub-BassもEQに通す（低音強調できるように）
+            this.subBassNode.connect(this.subBassGainNode);
+            this.subBassGainNode.connect(this.eqFilters[0]);
 
             for (let i = 0; i < this.eqFilters.length - 1; i++) {
                 this.eqFilters[i].connect(this.eqFilters[i + 1]);
@@ -577,6 +594,16 @@ export class AudioEngine {
     setSoundscapeVolume(value: number) {
         if (this.soundscapeMasterGain && this.ctx) {
             this.soundscapeMasterGain.gain.setTargetAtTime(value, this.ctx.currentTime, 0.1);
+        }
+    }
+
+    // Sub-Bass Volume (0.0 - 1.0)
+    setSubBassVolume(value: number) {
+        if (this.subBassGainNode && this.ctx) {
+            // 低音はエネルギーが大きいので、最大値を少し抑えるか、あるいはそのまま
+            // ここでは他のノイズとバランスを取るため、少し控えめに補正してもいいが、
+            // ユーザーが「ドンドン」に対抗したいので1.0まで出せるようにする
+            this.subBassGainNode.gain.setTargetAtTime(value, this.ctx.currentTime, 0.1);
         }
     }
 

@@ -735,6 +735,12 @@ input[type="range"] {
   accent-color: #dc2626;
 }
 
+/* Sub-Bass (Deep Blue/Black) */
+.mixer-channel.subbass .mixer-slider {
+  accent-color: #4338ca;
+  /* Indigo */
+}
+
 /* Red for caution */
 
 .mixer-value {

@@ -386,37 +386,44 @@ eqSliders.forEach((slider) => {
 });
 
 // Noise Mixer Elements
-const mixWhite = document.getElementById('mix-white') as HTMLInputElement;
-const mixPink = document.getElementById('mix-pink') as HTMLInputElement;
-const mixBrown = document.getElementById('mix-brown') as HTMLInputElement;
-const mixDark = document.getElementById('mix-dark') as HTMLInputElement;
+const mixWhiteSlider = document.getElementById('mix-white') as HTMLInputElement;
+const mixPinkSlider = document.getElementById('mix-pink') as HTMLInputElement;
+const mixBrownSlider = document.getElementById('mix-brown') as HTMLInputElement;
+const mixDarkSlider = document.getElementById('mix-dark') as HTMLInputElement;
 
 const valWhite = document.getElementById('val-white') as HTMLSpanElement;
 const valPink = document.getElementById('val-pink') as HTMLSpanElement;
 const valBrown = document.getElementById('val-brown') as HTMLSpanElement;
 const valDark = document.getElementById('val-dark') as HTMLSpanElement;
+// Sub-Bass
+const mixSubSlider = document.getElementById('mix-sub') as HTMLInputElement;
+const valSub = document.getElementById('val-sub') as HTMLSpanElement;
 
 // Mixer Event Handlers
 function updateMixer() {
-  const w = parseFloat(mixWhite.value);
-  const p = parseFloat(mixPink.value);
-  const b = parseFloat(mixBrown.value);
-  const d = parseFloat(mixDark.value);
+  const w = parseFloat(mixWhiteSlider.value);
+  const p = parseFloat(mixPinkSlider.value);
+  const b = parseFloat(mixBrownSlider.value);
+  const d = parseFloat(mixDarkSlider.value);
+  const s = parseFloat(mixSubSlider.value);
 
   valWhite.textContent = Math.round(w * 100) + '%';
   valPink.textContent = Math.round(p * 100) + '%';
   valBrown.textContent = Math.round(b * 100) + '%';
   valDark.textContent = Math.round(d * 100) + '%';
+  valSub.textContent = Math.round(s * 100) + '%';
 
   engine.setNoiseMix(w, p, b, d);
+  engine.setSubBassVolume(s);
 }
 
 // UI更新ヘルパー (プリセット適用時などに使う)
-function applyMixerUI(w: number, p: number, b: number, d: number) {
-  mixWhite.value = String(w);
-  mixPink.value = String(p);
-  mixBrown.value = String(b);
-  mixDark.value = String(d);
+function applyMixerUI(w: number, p: number, b: number, d: number, s: number) {
+  mixWhiteSlider.value = String(w);
+  mixPinkSlider.value = String(p);
+  mixBrownSlider.value = String(b);
+  mixDarkSlider.value = String(d);
+  mixSubSlider.value = String(s);
 
   // engineへの送信はupdateMixer内で行うが、
   // UIから呼ばれた場合と区別するためここでは呼び出さず、
@@ -646,17 +653,21 @@ function loadFromSlot(slotId: string) {
   if (anySlot.noiseType !== undefined && !slotData.mix) {
     // Migration
     const type = anySlot.noiseType;
-    let w = 0, p = 0, b = 0, d = 0;
+    let w = 0, p = 0, b = 0, d = 0, s = 0;
     if (type === 0) w = 1;
     else if (type === 1) p = 1;
     else b = 1;
 
-    applyMixerUI(w, p, b, d);
+    applyMixerUI(w, p, b, d, s);
     engine.setNoiseMix(w, p, b, d);
+    engine.setSubBassVolume(s);
   } else if (slotData.mix) {
     const m = slotData.mix;
-    applyMixerUI(m.w, m.p, m.b, m.d);
+    // 古いデータにはsがないかもしれないのでチェック
+    const s = (m as any).s || 0;
+    applyMixerUI(m.w, m.p, m.b, m.d, s);
     engine.setNoiseMix(m.w, m.p, m.b, m.d);
+    engine.setSubBassVolume(s);
   }
 
   // EQ設定
