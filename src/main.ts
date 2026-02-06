@@ -64,6 +64,54 @@ const sensValue = document.getElementById('sens-value') as HTMLSpanElement;
 // 初期設定
 volumeValue.textContent = parseFloat(volumeSlider.value).toFixed(2);
 
+// Media Session Setup
+function setupMediaSession() {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'Sound Masking',
+      artist: 'AntiGravity',
+      album: 'Ambient Noise Generator',
+      artwork: [
+        { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' }
+      ]
+    });
+
+    navigator.mediaSession.setActionHandler('play', async () => {
+      if (engine.isInitialized) {
+        await engine.resume();
+        updatePlayButtonState(true);
+      }
+    });
+
+    navigator.mediaSession.setActionHandler('pause', () => {
+      if (engine.isInitialized) {
+        engine.suspend();
+        updatePlayButtonState(false);
+      }
+    });
+  }
+}
+
+// Media Session Setup Call
+setupMediaSession();
+
+// Helper to update UI based on playback state
+function updatePlayButtonState(isPlaying: boolean) {
+  if (isPlaying) {
+    statusEl.textContent = 'Running';
+    statusEl.className = 'status-running';
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+  } else {
+    statusEl.textContent = 'Stopped';
+    statusEl.className = 'status-stopped';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  }
+}
+
+// Start Button Handler
 startBtn.addEventListener('click', async () => {
   try {
     if (!engine.isInitialized) {
@@ -74,63 +122,19 @@ startBtn.addEventListener('click', async () => {
     // Soundscapesロード開始
     initAndLoadSounds();
 
-
     // 現在選択されているノイズタイプを適用
     const selectedRadio = document.querySelector('input[name="noiseType"]:checked') as HTMLInputElement;
     if (selectedRadio) {
-
-      // ==========================================
-      // Media Session API (Background Playback)
-      // ==========================================
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: 'Sound Masking',
-          artist: 'AntiGravity',
-          album: 'Ambient Noise Generator',
-          artwork: [
-            { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-            { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' }
-          ]
-        });
-
-        navigator.mediaSession.setActionHandler('play', async () => {
-          if (engine.isInitialized) {
-            await engine.resume();
-            updatePlayButtonState(true); // Helper to update UI
-          }
-        });
-
-        navigator.mediaSession.setActionHandler('pause', () => {
-          if (engine.isInitialized) {
-            engine.suspend();
-            updatePlayButtonState(false);
-          }
-        });
-
-        // Update playback state
-        const updateMediaSessionState = (isPlaying: boolean) => {
-          navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-        };
-
-        // Hook into start/stop buttons to update MediaSession state
-        startBtn.addEventListener('click', () => updateMediaSessionState(true));
-        stopBtn.addEventListener('click', () => updateMediaSessionState(false));
-      }
-
-      function updatePlayButtonState(isPlaying: boolean) {
-        if (isPlaying) {
-          statusEl.textContent = 'Running';
-          statusEl.className = 'status-running';
-          startBtn.disabled = true;
-          stopBtn.disabled = false;
-        } else {
-          statusEl.textContent = 'Stopped';
-          statusEl.className = 'status-stopped';
-          startBtn.disabled = false;
-          stopBtn.disabled = true;
-        }
-      }
       engine.setNoiseType(parseInt(selectedRadio.value));
+    }
+
+    // Update UI
+    updatePlayButtonState(true);
+    startIndicatorLoop();
+
+    // Update Media Session State
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
     }
 
     // 現在の音量を適用
