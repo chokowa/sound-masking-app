@@ -114,7 +114,12 @@ export class AudioEngine {
     private eqFilters: BiquadFilterNode[] = [];
 
     // マイク入力用
-    private inputScanParams: { stream: MediaStream | null, source: MediaStreamAudioSourceNode | null, analyser: AnalyserNode | null } = { stream: null, source: null, analyser: null };
+    private inputScanParams: {
+        stream: MediaStream | null,
+        source: MediaStreamAudioSourceNode | null,
+        gain: GainNode | null,
+        analyser: AnalyserNode | null
+    } = { stream: null, source: null, gain: null, analyser: null };
     private detector: ImpactDetector | null = null;
 
     public isInitialized = false;
@@ -250,11 +255,19 @@ export class AudioEngine {
                 }
             });
             this.inputScanParams.stream = stream;
+            this.inputScanParams.stream = stream;
             this.inputScanParams.source = this.ctx.createMediaStreamSource(stream);
+
+            // プリアンプ (GainNode) 作成: マイク感度向上用
+            this.inputScanParams.gain = this.ctx.createGain();
+            this.inputScanParams.gain.gain.value = 5.0; // 入力を5倍に増幅
+
             this.inputScanParams.analyser = this.ctx.createAnalyser();
             this.inputScanParams.analyser.fftSize = 2048;
 
-            this.inputScanParams.source.connect(this.inputScanParams.analyser);
+            // 接続: Source -> Gain -> Analyser
+            this.inputScanParams.source.connect(this.inputScanParams.gain);
+            this.inputScanParams.gain.connect(this.inputScanParams.analyser);
 
             // コールバック設定
             const callbacks: DetectionCallbacks = {
@@ -306,6 +319,10 @@ export class AudioEngine {
                 if (this.inputScanParams.source) {
                     this.inputScanParams.source.disconnect();
                     this.inputScanParams.source = null;
+                }
+                if (this.inputScanParams.gain) {
+                    this.inputScanParams.gain.disconnect();
+                    this.inputScanParams.gain = null;
                 }
                 // Analyserは再利用してもいいが、念のため
                 if (this.inputScanParams.analyser) {
