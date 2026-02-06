@@ -241,6 +241,24 @@ export class AudioEngine {
         return this.inputScanParams.analyser;
     }
 
+    // マイク入力レベル取得 (0.0 - 1.0)
+    getMicrophoneVolume(): number {
+        const analyser = this.inputScanParams.analyser;
+        if (!analyser) return 0;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteTimeDomainData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+            const x = (dataArray[i] - 128) / 128.0;
+            sum += x * x;
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+        // 感度向上してるので、表示用に少し調整 (0.5くらいでMAXに見えるように)
+        return Math.min(rms * 3.0, 1.0);
+    }
+
     // マイク入力の初期化
     async initInput() {
         if (!this.ctx) return;

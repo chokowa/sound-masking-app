@@ -11,6 +11,9 @@ const adaptiveIndicatorValue = document.getElementById('adaptive-indicator-value
 const reactiveIndicator = document.getElementById('reactive-indicator') as HTMLDivElement;
 const reactiveIndicatorValue = document.getElementById('reactive-indicator-value') as HTMLSpanElement;
 
+// マイク入力インジケーター
+const micInputLevel = document.getElementById('mic-input-level') as HTMLDivElement;
+
 // インジケーター更新ループ
 let indicatorAnimationId: number | null = null;
 
@@ -27,6 +30,12 @@ function startIndicatorLoop() {
     const reactiveActive = gains.reactive > 1.01;
     reactiveIndicator.classList.toggle('active', reactiveActive);
     reactiveIndicatorValue.textContent = gains.reactive.toFixed(2) + 'x';
+
+    // Mic Input Level
+    if (micInputLevel) {
+      const micVolume = engine.getMicrophoneVolume();
+      micInputLevel.style.width = `${micVolume * 100}%`;
+    }
 
     indicatorAnimationId = requestAnimationFrame(updateIndicators);
   };
