@@ -140,9 +140,17 @@ export class AudioEngine {
         if (this.isInitialized) return;
 
         this.ctx = new AudioContext({
-            latencyHint: 'playback',
-            sampleRate: 44100 // 明示的に標準的なレートを指定してみる（任意）
+            latencyHint: 'playback'
         });
+
+        // 状態監視: Bluetooth接続などでSuspendedになったら復帰を試みる
+        this.ctx.onstatechange = () => {
+            console.log(`AudioContext state changed to: ${this.ctx?.state}`);
+            if (this.ctx?.state === 'suspended') {
+                // ユーザー操作が必要な場合もあるが、可能な限り復帰を試行
+                this.ctx.resume().catch(e => console.warn('Auto-resume failed:', e));
+            }
+        };
 
         try {
             // Blob URLを作成して読み込み
