@@ -232,8 +232,7 @@ export class AudioEngine {
                 audio: {
                     echoCancellation: false,
                     noiseSuppression: false,
-                    autoGainControl: false,
-                    latency: 0
+                    autoGainControl: false
                 }
             });
             this.inputScanParams.stream = stream;
