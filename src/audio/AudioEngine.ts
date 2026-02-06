@@ -122,7 +122,6 @@ export class AudioEngine {
     private isFluctuationEnabled = false;
     private fluctuationStrength = 0.0;
     private fluctuationAnimationId: number | null = null;
-    private fluctuationAnimationId: number | null = null;
 
     // マイク入力用
     private inputScanParams: {
@@ -151,6 +150,9 @@ export class AudioEngine {
     private adaptiveDecayValue = 0.5; // 減衰時間 (Decay)
 
     private isExplicitlyStopped = false;
+
+    // Soundscapes Check
+    public areSoundscapesLoaded = false;
 
     constructor() { }
 
@@ -652,7 +654,6 @@ export class AudioEngine {
 
         // 簡易的な1/fゆらぎ (間欠カオス)
         // 完全にランダムではなく、前の値を少し引き継ぐ
-        const random = Math.random() * 2 - 1; // -1 to 1
 
         // ターゲット値を少し揺らす (Center 1.0)
         // 強度が高いほど振れ幅が大きくなる
@@ -662,7 +663,6 @@ export class AudioEngine {
         // Strength 0.0 -> 1.0 (定数)
         // Strength 1.0 -> +/- 0.15 くらいの変動
 
-        // Time base oscillation adds natural feel (Sine waves composition)
         const t = Date.now() / 1000;
         const wave1 = Math.sin(t * 0.1); // Slow 10s period
         const wave2 = Math.sin(t * 0.23 + 1); // ~4s period
@@ -671,11 +671,17 @@ export class AudioEngine {
         // 合成 (Composite)
         const combined = (wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2);
 
-        // 適用範囲: 1.0 +/- (strength * 0.2)
-        const targetGain = 1.0 + (combined * this.fluctuationStrength * 0.2);
+        // 適用範囲: 1.0 +/- (strength * 0.5)
+        // 0.2だと気づきにくいので0.5まで広げる
+        const targetGain = 1.0 + (combined * this.fluctuationStrength * 0.5);
 
         // 滑らかに移行
         this.fluctuationGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.1);
+
+        // Debug log (throttle)
+        if (Math.random() < 0.01) {
+            console.log('Fluctuation gain:', targetGain);
+        }
 
         this.fluctuationAnimationId = requestAnimationFrame(this.fluctuationLoop);
     };

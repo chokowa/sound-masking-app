@@ -439,14 +439,14 @@ function applyMixerUI(w: number, p: number, b: number, d: number, s: number) {
   valDark.textContent = Math.round(d * 100) + '%';
 }
 
-[mixWhite, mixPink, mixBrown, mixDark].forEach(slider => {
+[mixWhiteSlider, mixPinkSlider, mixBrownSlider, mixDarkSlider, mixSubSlider].forEach(slider => {
   slider.addEventListener('input', updateMixer);
 });
 
 // プリセット定義（リサーチ資料に基づく最適設定）
 // プリセット定義（リサーチ資料に基づく最適設定）
 interface Preset {
-  mix: { w: number; p: number; b: number; d: number }; // White, Pink, Brown, Dark
+  mix: { w: number; p: number; b: number; d: number; s?: number }; // White, Pink, Brown, Dark, Sub
   eq: number[];      // 5バンドEQ値 [60Hz, 250Hz, 1kHz, 4kHz, 12kHz]
   volume: number;
 }
@@ -467,6 +467,12 @@ const PRESETS: Record<string, Preset> = {
   // 睡眠用: High cut for relaxation
   sleep: { mix: { w: 0, p: 0, b: 1.0, d: 0.1 }, eq: [6, 4, 0, -6, -10], volume: 0.08 },
 
+  // カフェ: White/Pink/Brown balanced
+  cafe: { mix: { w: 0.1, p: 0.4, b: 0.4, d: 0.1 }, eq: [2, 2, 2, 2, 0], volume: 0.12 },
+
+  // 瞑想: Deep Brown + Sub
+  deep_focus: { mix: { w: 0, p: 0, b: 0.5, d: 0.5, s: 0.3 }, eq: [4, 0, 0, -5, -10], volume: 0.15 },
+
   // 集中用: Pink/Brown Mix
   focus: { mix: { w: 0, p: 0.6, b: 0.4, d: 0 }, eq: [2, 2, 0, 0, -2], volume: 0.1 },
 
@@ -484,8 +490,10 @@ function applyPreset(presetName: string) {
 
   // ノイズミキシング設定適用
   const m = preset.mix;
-  applyMixerUI(m.w, m.p, m.b, m.d);
+  const s = m.s || 0;
+  applyMixerUI(m.w, m.p, m.b, m.d, s);
   engine.setNoiseMix(m.w, m.p, m.b, m.d);
+  engine.setSubBassVolume(s);
 
   // EQ設定
   preset.eq.forEach((gain, index) => {
@@ -1037,10 +1045,8 @@ const SOUND_ASSETS = [
   { id: 'car_driving', url: 'sounds/car_driving.mp3' }
 ];
 
-let soundsLoaded = false;
-
 async function initAndLoadSounds() {
-  if (soundsLoaded) return;
+  if (engine.areSoundscapesLoaded) return;
 
   await engine.initSoundscapes();
 
@@ -1048,7 +1054,7 @@ async function initAndLoadSounds() {
   const promises = SOUND_ASSETS.map(asset => engine.loadSound(asset.id, asset.url));
   await Promise.all(promises);
 
-  soundsLoaded = true;
+  engine.areSoundscapesLoaded = true;
   console.log('All soundscapes loaded');
 }
 
