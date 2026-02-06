@@ -283,6 +283,24 @@ export class AudioEngine {
             this.stopAdaptiveLoop();
             this.adaptiveGain = 0;
             this.adaptiveTargetGain = 0;
+
+            // マイクストリームを完全に停止・解放する
+            if (this.inputScanParams.stream) {
+                this.inputScanParams.stream.getTracks().forEach(track => track.stop());
+                this.inputScanParams.stream = null;
+                // Source/Analyserも作り直しになるためクリア
+                if (this.inputScanParams.source) {
+                    this.inputScanParams.source.disconnect();
+                    this.inputScanParams.source = null;
+                }
+                // Analyserは再利用してもいいが、念のため
+                if (this.inputScanParams.analyser) {
+                    this.inputScanParams.analyser.disconnect();
+                    this.inputScanParams.analyser = null;
+                }
+                console.log('Microphone stream released');
+            }
+
             // ゲインを元に戻す
             if (this.adaptiveGainNode && this.reactiveGainNode && this.ctx) {
                 this.adaptiveGainNode.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.5);
