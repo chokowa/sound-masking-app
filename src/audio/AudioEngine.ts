@@ -139,7 +139,10 @@ export class AudioEngine {
     async init() {
         if (this.isInitialized) return;
 
-        this.ctx = new AudioContext();
+        this.ctx = new AudioContext({
+            latencyHint: 'playback',
+            sampleRate: 44100 // 明示的に標準的なレートを指定してみる（任意）
+        });
 
         try {
             // Blob URLを作成して読み込み
