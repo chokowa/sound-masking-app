@@ -25,7 +25,7 @@ class NoiseProcessor extends AudioWorkletProcessor {
     ];
   }
 
-  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
+  process(_inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
     const output = outputs[0];
     const whiteGainParam = parameters['whiteGain'];
     const pinkGainParam = parameters['pinkGain'];

@@ -766,7 +766,9 @@ function updateSlotUI() {
       const noiseNames = ['White', 'Pink', 'Brown'];
 
       if (statusEl) {
-        statusEl.textContent = `${noiseNames[slotData.noiseType]} / Vol ${(slotData.volume * 100).toFixed(0)}% (${dateStr})`;
+        const anySlot = slotData as any;
+        const name = anySlot.noiseType !== undefined ? noiseNames[anySlot.noiseType] : 'Custom Mix';
+        statusEl.textContent = `${name} / Vol ${(slotData.volume * 100).toFixed(0)}% (${dateStr})`;
         statusEl.classList.add('has-data');
       }
       if (loadBtn) loadBtn.disabled = false;
