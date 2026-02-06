@@ -1,15 +1,91 @@
 // AudioEngine.ts
-import processorUrl from './noise-processor.ts?url';
-import { ImpactDetector, type DetectionCallbacks } from './ImpactDetector';
+// AudioWorklet Code (Embedded to avoid GitHub Pages loading issues)
+const processorCode = `
+class NoiseProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.b0 = 0;
+    this.b1 = 0;
+    this.b2 = 0;
+    this.b3 = 0;
+    this.b4 = 0;
+    this.b5 = 0;
+    this.b6 = 0;
+    this.lastBrown = 0;
+    this.lastDark = 0;
+  }
 
-// EQバンド定義
-const EQ_BANDS = [
-    { freq: 60, type: 'lowshelf' as BiquadFilterType },
-    { freq: 250, type: 'peaking' as BiquadFilterType },
-    { freq: 1000, type: 'peaking' as BiquadFilterType },
-    { freq: 4000, type: 'peaking' as BiquadFilterType },
-    { freq: 12000, type: 'highshelf' as BiquadFilterType }
-];
+  static get parameterDescriptors() {
+    return [
+      { name: 'whiteGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'pinkGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'brownGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'darkGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'masterGain', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'a-rate' }
+    ];
+  }
+
+  process(_inputs, outputs, parameters) {
+    const output = outputs[0];
+    const whiteGainParam = parameters['whiteGain'];
+    const pinkGainParam = parameters['pinkGain'];
+    const brownGainParam = parameters['brownGain'];
+    const darkGainParam = parameters['darkGain'];
+    const masterGainParam = parameters['masterGain'];
+
+    const wGain = whiteGainParam[0];
+    const pGain = pinkGainParam[0];
+    const bGain = brownGainParam[0];
+    const dGain = darkGainParam[0];
+
+    if (wGain === 0 && pGain === 0 && bGain === 0 && dGain === 0) {
+      for (let c = 0; c < output.length; c++) {
+        output[c].fill(0);
+      }
+      return true;
+    }
+
+    const channelCount = output.length;
+    for (let c = 0; c < channelCount; c++) {
+      const channel = output[c];
+      const len = channel.length;
+      const shouldUseArray = masterGainParam.length > 1;
+
+      for (let i = 0; i < len; i++) {
+        const mGain = shouldUseArray ? masterGainParam[i] : masterGainParam[0];
+        const white = Math.random() * 2 - 1;
+        let mixedOutput = 0;
+
+        if (wGain > 0) mixedOutput += white * wGain;
+
+        if (pGain > 0) {
+          this.b0 = 0.99886 * this.b0 + white * 0.0555179;
+          this.b1 = 0.99332 * this.b1 + white * 0.0750759;
+          this.b2 = 0.96900 * this.b2 + white * 0.1538520;
+          this.b3 = 0.86650 * this.b3 + white * 0.3104856;
+          this.b4 = 0.55000 * this.b4 + white * 0.5329522;
+          this.b5 = -0.7616 * this.b5 - white * 0.0168980;
+          let pink = this.b0 + this.b1 + this.b2 + this.b3 + this.b4 + this.b5 + this.b6 + white * 0.5362;
+          this.b6 = white * 0.115926;
+          mixedOutput += (pink * 0.11) * pGain;
+        }
+
+        const brownUpdate = (this.lastBrown + (0.02 * white)) / 1.02;
+        this.lastBrown = brownUpdate;
+        if (bGain > 0) mixedOutput += (brownUpdate * 3.5) * bGain;
+
+        const darkUpdate = (this.lastDark + (0.005 * white)) / 1.005;
+        this.lastDark = darkUpdate;
+        if (dGain > 0) mixedOutput += (darkUpdate * 4.0) * dGain;
+
+        channel[i] = mixedOutput * mGain;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('noise-processor', NoiseProcessor);
+`;
 
 export class AudioEngine {
     private ctx: AudioContext | null = null;
@@ -55,7 +131,11 @@ export class AudioEngine {
         this.ctx = new AudioContext();
 
         try {
-            await this.ctx.audioWorklet.addModule(processorUrl);
+            // Blob URLを作成して読み込み
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await this.ctx.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url); // メモリ解放
 
             this.noiseNode = new AudioWorkletNode(this.ctx, 'noise-processor');
 

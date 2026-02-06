@@ -23,8 +23,8 @@ dist-ssr
 *.sln
 
 # PWA
-public/pwa-*.png
-public/vite.svg
+# public/pwa-*.png (Uncommented to allow commit)
+# public/vite.svg (Uncommented)
 
 # OS
 Thumbs.db
