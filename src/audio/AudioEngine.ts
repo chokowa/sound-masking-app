@@ -117,6 +117,13 @@ export class AudioEngine {
     private subBassNode: OscillatorNode | null = null;
     private subBassGainNode: GainNode | null = null;
 
+    // 1/f Fluctuation
+    private fluctuationGainNode: GainNode | null = null;
+    private isFluctuationEnabled = false;
+    private fluctuationStrength = 0.0;
+    private fluctuationAnimationId: number | null = null;
+    private fluctuationAnimationId: number | null = null;
+
     // マイク入力用
     private inputScanParams: {
         stream: MediaStream | null,
@@ -190,12 +197,14 @@ export class AudioEngine {
             this.baseGainNode = this.ctx.createGain();
             this.adaptiveGainNode = this.ctx.createGain();
             this.reactiveGainNode = this.ctx.createGain();
+            this.fluctuationGainNode = this.ctx.createGain(); // ゆらぎ用
             this.analyser = this.ctx.createAnalyser();
 
             // 初期値設定
             this.baseGainNode.gain.value = this.baseVolume;
-            this.adaptiveGainNode.gain.value = 1.0; // 乗算式（デフォルトは変化なし）
-            this.reactiveGainNode.gain.value = 1.0; // 乗算式（デフォルトは変化なし）
+            this.adaptiveGainNode.gain.value = 1.0;
+            this.reactiveGainNode.gain.value = 1.0;
+            this.fluctuationGainNode.gain.value = 1.0; // デフォルト1.0 (変化なし)
             this.analyser.fftSize = 2048;
 
             // EQフィルターを作成
@@ -222,7 +231,8 @@ export class AudioEngine {
             this.eqFilters[this.eqFilters.length - 1].connect(this.baseGainNode);
             this.baseGainNode.connect(this.adaptiveGainNode);
             this.adaptiveGainNode.connect(this.reactiveGainNode);
-            this.reactiveGainNode.connect(this.analyser);
+            this.reactiveGainNode.connect(this.fluctuationGainNode);
+            this.fluctuationGainNode.connect(this.analyser);
             this.analyser.connect(this.ctx.destination);
 
             this.isInitialized = true;
@@ -600,12 +610,75 @@ export class AudioEngine {
     // Sub-Bass Volume (0.0 - 1.0)
     setSubBassVolume(value: number) {
         if (this.subBassGainNode && this.ctx) {
-            // 低音はエネルギーが大きいので、最大値を少し抑えるか、あるいはそのまま
-            // ここでは他のノイズとバランスを取るため、少し控えめに補正してもいいが、
-            // ユーザーが「ドンドン」に対抗したいので1.0まで出せるようにする
             this.subBassGainNode.gain.setTargetAtTime(value, this.ctx.currentTime, 0.1);
         }
     }
+
+    // ==========================================
+    // 1/f Fluctuation Logic
+    // ==========================================
+
+    setFluctuation(enabled: boolean) {
+        this.isFluctuationEnabled = enabled;
+        if (enabled) {
+            this.startFluctuationLoop();
+        } else {
+            this.stopFluctuationLoop();
+            // Reset gain to 1.0 smoothly
+            if (this.fluctuationGainNode && this.ctx) {
+                this.fluctuationGainNode.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.5);
+            }
+        }
+    }
+
+    setFluctuationStrength(strength: number) {
+        this.fluctuationStrength = strength;
+    }
+
+    private startFluctuationLoop() {
+        if (this.fluctuationAnimationId !== null) return;
+        this.fluctuationLoop();
+    }
+
+    private stopFluctuationLoop() {
+        if (this.fluctuationAnimationId !== null) {
+            cancelAnimationFrame(this.fluctuationAnimationId);
+            this.fluctuationAnimationId = null;
+        }
+    }
+
+    private fluctuationLoop = () => {
+        if (!this.isFluctuationEnabled || !this.fluctuationGainNode || !this.ctx) return;
+
+        // 簡易的な1/fゆらぎ (間欠カオス)
+        // 完全にランダムではなく、前の値を少し引き継ぐ
+        const random = Math.random() * 2 - 1; // -1 to 1
+
+        // ターゲット値を少し揺らす (Center 1.0)
+        // 強度が高いほど振れ幅が大きくなる
+        // ゆっくり変化させるため、現在の値に対して少しだけ加算するランダムウォーク
+
+        // 0.9 - 1.1 くらいの範囲で揺らぐイメージ (Strength max時)
+        // Strength 0.0 -> 1.0 (定数)
+        // Strength 1.0 -> +/- 0.15 くらいの変動
+
+        // Time base oscillation adds natural feel (Sine waves composition)
+        const t = Date.now() / 1000;
+        const wave1 = Math.sin(t * 0.1); // Slow 10s period
+        const wave2 = Math.sin(t * 0.23 + 1); // ~4s period
+        const wave3 = Math.sin(t * 0.7 + 2); // ~1.4s period
+
+        // 合成 (Composite)
+        const combined = (wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2);
+
+        // 適用範囲: 1.0 +/- (strength * 0.2)
+        const targetGain = 1.0 + (combined * this.fluctuationStrength * 0.2);
+
+        // 滑らかに移行
+        this.fluctuationGainNode.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.1);
+
+        this.fluctuationAnimationId = requestAnimationFrame(this.fluctuationLoop);
+    };
 
     // ==========================================
     // File Playback (Soundscapes)

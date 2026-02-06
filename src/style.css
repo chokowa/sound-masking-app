@@ -867,3 +867,13 @@ input[type="range"] {
   /* var(--accent-primary) */
   transition: width 0.05s ease-out;
 }
+
+/* Advanced Settings */
+.advanced-card {
+  border-left: 4px solid #8b5cf6;
+  /* Violet */
+}
+
+.advanced-card h2 {
+  color: #ddd;
+}

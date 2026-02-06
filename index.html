@@ -175,16 +175,37 @@
           </button>
           <button class="preset-btn" data-preset="focus">
             <span class="preset-icon">🎯</span>
-            <span class="preset-name">集中用</span>
-          </button>
-          <button class="preset-btn" data-preset="tinnitus">
-            <span class="preset-icon">👂</span>
-            <span class="preset-name">耳鳴り/高音</span>
-          </button>
-          <button class="preset-btn" data-preset="flat">
-            <span class="preset-icon">⚖️</span>
-            <span class="preset-name">フラット</span>
-          </button>
+            <button class="preset-btn" data-preset="tinnitus">
+              <span class="preset-icon">👂</span>
+              <span class="preset-name">耳鳴り/高音</span>
+            </button>
+            <button class="preset-btn" data-preset="sleep">
+              <span class="preset-icon">💤</span>
+              <span class="preset-name">安眠</span>
+            </button>
+            <button class="preset-btn" data-preset="cafe">
+              <span class="preset-icon">☕</span>
+              <span class="preset-name">カフェ</span>
+            </button>
+            <button class="preset-btn" data-preset="deep_focus">
+              <span class="preset-icon">🧘</span>
+              <span class="preset-name">瞑想</span>
+            </button>
+        </div>
+      </div>
+
+      <!-- Advanced Masking -->
+      <div class="card advanced-card">
+        <h2>Advanced Masking</h2>
+        <div class="control-row">
+          <label>
+            <input type="checkbox" id="fluctuation-check" /> 1/f ゆらぎ (Fluctuation)
+          </label>
+        </div>
+        <div class="control-row reactive-sub">
+          <label>強度: <span id="fluctuation-strength-value">0.5</span></label>
+          <input type="range" id="fluctuation-strength-slider" min="0" max="1" step="0.1" value="0.5" />
+          <span class="range-labels"><span>微弱</span><span>強力</span></span>
         </div>
       </div>
 

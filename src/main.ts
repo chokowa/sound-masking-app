@@ -529,7 +529,7 @@ presetBtns.forEach((btn) => {
 const SLOT_STORAGE_KEY = 'soundmasking_custom_slots_v2'; // v2へ移行
 
 interface CustomSlotData {
-  mix: { w: number; p: number; b: number; d: number };
+  mix: { w: number; p: number; b: number; d: number; s?: number }; // Sub added
   eq: number[];
   volume: number;
   noiseVolume: number; // New V3
@@ -550,16 +550,21 @@ interface CustomSlotData {
   reactiveStrength: number;
   reactiveDuration: number;
 
+  // New V5: Fluctuation
+  fluctuationEnabled?: boolean;
+  fluctuationStrength?: number;
+
   savedAt: string;
 }
 
 // 現在の設定を取得
 function getCurrentSettings(): CustomSlotData {
   const mix = {
-    w: parseFloat(mixWhite.value),
-    p: parseFloat(mixPink.value),
-    b: parseFloat(mixBrown.value),
-    d: parseFloat(mixDark.value)
+    w: parseFloat(mixWhiteSlider.value),
+    p: parseFloat(mixPinkSlider.value),
+    b: parseFloat(mixBrownSlider.value),
+    d: parseFloat(mixDarkSlider.value),
+    s: parseFloat(mixSubSlider.value)
   };
 
   const eq: number[] = [];
@@ -593,6 +598,10 @@ function getCurrentSettings(): CustomSlotData {
     if (cb.checked && cb.dataset.band) detailedBands.push(cb.dataset.band);
   });
 
+  // Fluctuation
+  const fluctuationEnabled = fluctuationCheck.checked;
+  const fluctuationStrength = parseFloat(fluctuationStrengthSlider.value);
+
   return {
     mix,
     eq,
@@ -613,9 +622,27 @@ function getCurrentSettings(): CustomSlotData {
     reactiveStrength: parseFloat(reactiveStrengthSlider.value),
     reactiveDuration: parseInt(reactiveDurationSlider.value),
 
+    fluctuationEnabled,
+    fluctuationStrength,
     savedAt: new Date().toISOString()
   };
 }
+
+// Fluctuation Elements
+const fluctuationCheck = document.getElementById('fluctuation-check') as HTMLInputElement;
+const fluctuationStrengthSlider = document.getElementById('fluctuation-strength-slider') as HTMLInputElement;
+const fluctuationStrengthValue = document.getElementById('fluctuation-strength-value') as HTMLSpanElement;
+
+fluctuationCheck.addEventListener('change', (e) => {
+  const checked = (e.target as HTMLInputElement).checked;
+  engine.setFluctuation(checked);
+});
+
+fluctuationStrengthSlider.addEventListener('input', (e) => {
+  const val = parseFloat((e.target as HTMLInputElement).value);
+  fluctuationStrengthValue.textContent = val.toFixed(1);
+  engine.setFluctuationStrength(val);
+});
 
 // スロットデータを読み込み
 function loadSlotData(): Record<string, CustomSlotData> {
@@ -766,6 +793,20 @@ function loadFromSlot(slotId: string) {
     reactiveDurationSlider.value = String(slotData.reactiveDuration);
     reactiveDurationValue.textContent = String(slotData.reactiveDuration);
     engine.setReactiveBoostDuration(slotData.reactiveDuration);
+  }
+
+  // Fluctuation復元
+  if (slotData.fluctuationEnabled !== undefined) {
+    fluctuationCheck.checked = slotData.fluctuationEnabled;
+    engine.setFluctuation(slotData.fluctuationEnabled);
+  } else {
+    fluctuationCheck.checked = false;
+    engine.setFluctuation(false);
+  }
+  if (slotData.fluctuationStrength !== undefined) {
+    fluctuationStrengthSlider.value = String(slotData.fluctuationStrength);
+    fluctuationStrengthValue.textContent = slotData.fluctuationStrength.toFixed(1);
+    engine.setFluctuationStrength(slotData.fluctuationStrength);
   }
 
   // プリセットのアクティブ表示をクリア
