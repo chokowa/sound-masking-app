@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#242424">
+  <meta name="description" content="Advanced Sound Masking & Environmental Generator">
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="apple-touch-icon" href="/pwa-192x192.png">
+  <title>Sound Masking App</title>
+</head>
+
+<body>
+  <div id="app">
+    <h1>Sound Masking</h1>
+    <div class="card">
+      <button id="start-btn">Start</button>
+      <button id="stop-btn" disabled>Stop</button>
+    </div>
+
+    <div class="card volume-control-card">
+      <h2>Master Volume</h2>
+
+      <!-- Global Master -->
+      <div class="volume-row main-volume">
+        <div class="vol-label-group">
+          <span class="vol-icon">🎚️</span>
+          <label>Global</label>
+        </div>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.1" />
+        <span id="volume-value">0.10</span>
+      </div>
+
+      <!-- Divider -->
+      <div class="volume-divider"></div>
+
+      <!-- Sub Masters -->
+      <div class="volume-row sub-volume">
+        <div class="vol-label-group">
+          <span class="vol-icon">🌊</span>
+          <label>Noise</label>
+        </div>
+        <input type="range" id="noise-slider" min="0" max="1" step="0.01" value="1.0" />
+        <span id="noise-value">1.00</span>
+      </div>
+
+      <div class="volume-row sub-volume">
+        <div class="vol-label-group">
+          <span class="vol-icon">🌧️</span>
+          <label>Sounds</label>
+        </div>
+        <input type="range" id="sound-slider" min="0" max="1" step="0.01" value="1.0" />
+        <span id="sound-value">1.00</span>
+      </div>
+    </div>
+
+    <div class="card visualizer-card">
+      <h2>Audio Visualizer</h2>
+      <div class="visualizer-wrapper">
+        <canvas id="visualizer"></canvas>
+        <!-- ゲインインジケーター -->
+        <div class="gain-indicators">
+          <div class="gain-indicator adaptive-indicator" id="adaptive-indicator">
+            <span class="indicator-label">Adaptive</span>
+            <span class="indicator-value" id="adaptive-indicator-value">1.0x</span>
+          </div>
+          <div class="gain-indicator reactive-indicator" id="reactive-indicator">
+            <span class="indicator-label">Reactive</span>
+            <span class="indicator-value" id="reactive-indicator-value">1.0x</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="noise-tab">Color Noise</button>
+      <button class="tab-btn" data-tab="soundscapes-tab">Soundscapes</button>
+    </div>
+
+    <!-- Tab Content: Noise -->
+    <div id="noise-tab" class="tab-content active">
+      <div class="card noise-mixer-card">
+        <h2>Color Noise Mixer</h2>
+        <p class="desc">Blend noises to create your own isolation.</p>
+
+        <!-- White -->
+        <div class="mixer-channel white">
+          <div class="mixer-label-group">
+            <span class="mixer-label">White</span>
+            <span class="mixer-sublabel">High/Airy</span>
+          </div>
+          <div class="mixer-slider-wrapper">
+            <input type="range" class="mixer-slider" id="mix-white" min="0" max="1" step="0.01" value="0" />
+          </div>
+          <span class="mixer-value" id="val-white">0%</span>
+        </div>
+
+        <!-- Pink -->
+        <div class="mixer-channel pink">
+          <div class="mixer-label-group">
+            <span class="mixer-label">Pink</span>
+            <span class="mixer-sublabel">Balanced</span>
+          </div>
+          <div class="mixer-slider-wrapper">
+            <input type="range" class="mixer-slider" id="mix-pink" min="0" max="1" step="0.01" value="0" />
+          </div>
+          <span class="mixer-value" id="val-pink">0%</span>
+        </div>
+
+        <!-- Brown -->
+        <div class="mixer-channel brown">
+          <div class="mixer-label-group">
+            <span class="mixer-label">Brown</span>
+            <span class="mixer-sublabel">Deep/Rumble</span>
+          </div>
+          <div class="mixer-slider-wrapper">
+            <input type="range" class="mixer-slider" id="mix-brown" min="0" max="1" step="0.01" value="1.0" />
+          </div>
+          <span class="mixer-value" id="val-brown">100%</span>
+        </div>
+
+        <!-- Deep Brown (Dark) -->
+        <div class="mixer-channel dark">
+          <div class="mixer-label-group">
+            <span class="mixer-label">Deep</span>
+            <span class="mixer-sublabel">Ultra Low</span>
+          </div>
+          <div class="mixer-slider-wrapper">
+            <input type="range" class="mixer-slider" id="mix-dark" min="0" max="1" step="0.01" value="0" />
+            <div class="mixer-warning">※スマートフォン非推奨（外部スピーカー用）</div>
+          </div>
+          <span class="mixer-value" id="val-dark">0%</span>
+        </div>
+      </div>
+
+      <div class="card preset-card">
+        <h2>Quick Presets</h2>
+        <div class="preset-buttons">
+          <!-- Row 1: Active Noise Control -->
+          <button class="preset-btn" data-preset="footsteps_child">
+            <span class="preset-icon">🧸</span>
+            <span class="preset-name">足音 (子供)</span>
+          </button>
+          <button class="preset-btn" data-preset="footsteps_adult">
+            <span class="preset-icon">👞</span>
+            <span class="preset-name">足音 (大人)</span>
+          </button>
+          <button class="preset-btn" data-preset="impact_mid">
+            <span class="preset-icon">💥</span>
+            <span class="preset-name">落下音</span>
+          </button>
+          <button class="preset-btn" data-preset="voices">
+            <span class="preset-icon">🗣️</span>
+            <span class="preset-name">話し声</span>
+          </button>
+
+          <!-- Row 2: Condition / Relaxation -->
+          <button class="preset-btn" data-preset="sleep">
+            <span class="preset-icon">😴</span>
+            <span class="preset-name">睡眠用</span>
+          </button>
+          <button class="preset-btn" data-preset="focus">
+            <span class="preset-icon">🎯</span>
+            <span class="preset-name">集中用</span>
+          </button>
+          <button class="preset-btn" data-preset="tinnitus">
+            <span class="preset-icon">👂</span>
+            <span class="preset-name">耳鳴り/高音</span>
+          </button>
+          <button class="preset-btn" data-preset="flat">
+            <span class="preset-icon">⚖️</span>
+            <span class="preset-name">フラット</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card custom-slot-card">
+        <h2>Custom Slots (Noise)</h2>
+        <div class="custom-slots">
+          <div class="slot-row">
+            <span class="slot-label">Slot 1</span>
+            <span class="slot-status" id="slot-status-1">Empty</span>
+            <button class="slot-btn save-btn" data-slot="1">Save</button>
+            <button class="slot-btn load-btn" data-slot="1" disabled>Load</button>
+          </div>
+          <div class="slot-row">
+            <span class="slot-label">Slot 2</span>
+            <span class="slot-status" id="slot-status-2">Empty</span>
+            <button class="slot-btn save-btn" data-slot="2">Save</button>
+            <button class="slot-btn load-btn" data-slot="2" disabled>Load</button>
+          </div>
+          <div class="slot-row">
+            <span class="slot-label">Slot 3</span>
+            <span class="slot-status" id="slot-status-3">Empty</span>
+            <button class="slot-btn save-btn" data-slot="3">Save</button>
+            <button class="slot-btn load-btn" data-slot="3" disabled>Load</button>
+          </div>
+        </div>
+        <p class="desc">Save your custom settings to slots. Data is stored in your browser.</p>
+      </div>
+    </div>
+
+    <!-- Tab Content: Soundscapes -->
+    <div id="soundscapes-tab" class="tab-content">
+      <div class="card soundscape-card">
+        <h2>Soundscapes</h2>
+        <p class="desc">Layer ambient sounds with your noise.</p>
+
+        <div id="soundscapes-list" class="mixer-list">
+          <!-- Sounds will be injected here or hardcoded below -->
+          <!-- Hardcoding for simplicity and design control -->
+
+          <!-- Rain (Window) -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Rain (Window)</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="rain_window" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+          <!-- Rain (Summer) -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Rain (Summer)</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="rain_summer" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+          <!-- Rain (Green) -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Rain (Green)</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="rain_green" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+          <!-- Underwater -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Underwater</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="underwater" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+          <!-- Brown Noise (Smooth) -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Brown (Smooth)</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="brown_noise_smooth" min="0" max="1"
+                step="0.01" value="0" />
+            </div>
+          </div>
+
+          <!-- Spaceship -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Spaceship</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="spaceship" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+          <!-- Airplane -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Airplane</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="airplane" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+          <!-- Deep Rumble -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Rumble</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="rumble" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+          <!-- Car Driving -->
+          <div class="mixer-channel soundscape-channel">
+            <div class="mixer-label-group">
+              <span class="mixer-label">Car Driving</span>
+            </div>
+            <div class="mixer-slider-wrapper">
+              <input type="range" class="mixer-slider sound-slider" data-sound="car_driving" min="0" max="1" step="0.01"
+                value="0" />
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+
+
+    <div class="card eq-card">
+      <h2>5-Band Equalizer</h2>
+      <div class="eq-container">
+        <div class="eq-band">
+          <label>60Hz</label>
+          <input type="range" class="eq-slider" data-band="0" min="-12" max="12" step="1" value="0" orient="vertical" />
+          <span class="eq-value">0</span>
+        </div>
+        <div class="eq-band">
+          <label>250Hz</label>
+          <input type="range" class="eq-slider" data-band="1" min="-12" max="12" step="1" value="0" orient="vertical" />
+          <span class="eq-value">0</span>
+        </div>
+        <div class="eq-band">
+          <label>1kHz</label>
+          <input type="range" class="eq-slider" data-band="2" min="-12" max="12" step="1" value="0" orient="vertical" />
+          <span class="eq-value">0</span>
+        </div>
+        <div class="eq-band">
+          <label>4kHz</label>
+          <input type="range" class="eq-slider" data-band="3" min="-12" max="12" step="1" value="0" orient="vertical" />
+          <span class="eq-value">0</span>
+        </div>
+        <div class="eq-band">
+          <label>12kHz</label>
+          <input type="range" class="eq-slider" data-band="4" min="-12" max="12" step="1" value="0" orient="vertical" />
+          <span class="eq-value">0</span>
+        </div>
+      </div>
+      <p class="desc">Boost low frequencies (60Hz, 250Hz) to mask heavy footsteps.</p>
+    </div>
+
+    <div class="card detection-card">
+      <h2>Auto Masking</h2>
+      <div class="control-row">
+        <label>
+          <input type="checkbox" id="auto-mode-check" /> Enable Auto Detection
+        </label>
+      </div>
+    </div>
+    <!-- SensitivityはReactive設定内へ移動 -->
+
+    <!-- モード切替 -->
+
+    <!-- モード切替 -->
+    <div class="detection-mode-toggle">
+      <button id="simple-mode-btn" class="mode-btn active">シンプル</button>
+      <button id="detailed-mode-btn" class="mode-btn">詳細</button>
+    </div>
+
+    <!-- シンプルモード -->
+    <div id="simple-mode-panel" class="mode-panel">
+      <div class="simple-mode-buttons">
+        <button class="simple-mode-btn active" data-mode="all">全帯域</button>
+        <button class="simple-mode-btn" data-mode="footsteps_all">足音</button>
+        <button class="simple-mode-btn" data-mode="impact_all">衝撃音</button>
+        <button class="simple-mode-btn" data-mode="voice_all">話し声</button>
+      </div>
+    </div>
+
+    <!-- 詳細モード -->
+    <div id="detailed-mode-panel" class="mode-panel hidden">
+      <p class="desc" style="margin-bottom: 0.5em;">複数選択可能：</p>
+      <div class="band-checkboxes">
+        <label class="band-check"><input type="checkbox" data-band="ultra_low" /> 超低域衝撃 (20-50Hz)</label>
+        <label class="band-check"><input type="checkbox" data-band="footsteps" /> 歩行音 (50-100Hz)</label>
+        <label class="band-check"><input type="checkbox" data-band="light_impact" /> 軽い衝撃 (100-300Hz)</label>
+        <label class="band-check"><input type="checkbox" data-band="hard_impact" /> 硬質衝撃 (300-1kHz)</label>
+        <label class="band-check"><input type="checkbox" data-band="low_freq" /> 低音域 (50-250Hz)</label>
+        <label class="band-check"><input type="checkbox" data-band="voice_male" /> 話し声/男性 (100-500Hz)</label>
+        <label class="band-check"><input type="checkbox" data-band="voice_female" /> 話し声/女性・子供 (300-3kHz)</label>
+        <label class="band-check"><input type="checkbox" data-band="high_freq" /> 高周波雑音 (2-8kHz)</label>
+      </div>
+    </div>
+
+    <!-- ゲイン調整モード（シンプル/詳細共通） -->
+    <div class="gain-mode-section">
+      <h3>ゲイン調整</h3>
+
+      <!-- Adaptive設定 -->
+      <div class="adaptive-settings">
+        <p class="mode-label">◉ Adaptive（基本・常時動作）</p>
+        <div class="control-row">
+          <label>反応速度 (Attack): <span id="adaptive-speed-value">0.5</span></label>
+          <input type="range" id="adaptive-speed-slider" min="0" max="1" step="0.1" value="0.5" />
+          <span class="range-labels"><span>遅い</span><span>速い</span></span>
+        </div>
+        <div class="control-row" style="margin-top: 0.5em;">
+          <label>減衰時間 (Decay): <span id="adaptive-decay-value">0.5</span></label>
+          <input type="range" id="adaptive-decay-slider" min="0" max="1" step="0.1" value="0.5" />
+          <span class="range-labels"><span>短い</span><span>長い</span></span>
+        </div>
+      </div>
+
+      <!-- Reactive設定 -->
+      <div class="reactive-settings">
+        <div class="control-row">
+          <label>
+            <input type="checkbox" id="reactive-check" checked /> Reactive併用（即時ブースト）
+          </label>
+        </div>
+        <!-- Sensitivity (検知感度) -->
+        <div class="control-row reactive-sub" id="reactive-sens-controls">
+          <label>検知感度: <span id="sens-value">0.5</span></label>
+          <input type="range" id="sens-slider" min="0" max="1" step="0.1" value="0.5" />
+          <span class="range-labels"><span>鈍感</span><span>敏感</span></span>
+        </div>
+        <div class="control-row reactive-sub" id="reactive-controls">
+          <label>ブースト強度: <span id="reactive-strength-value">0.3</span></label>
+          <input type="range" id="reactive-strength-slider" min="0" max="0.5" step="0.05" value="0.3" />
+          <span class="range-labels"><span>弱い</span><span>強い</span></span>
+        </div>
+        <div class="control-row reactive-sub" id="reactive-duration-controls">
+          <label>持続時間: <span id="reactive-duration-value">10</span>秒</label>
+          <input type="range" id="reactive-duration-slider" min="5" max="30" step="1" value="10" />
+          <span class="range-labels"><span>5秒</span><span>30秒</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- タイマー機能 -->
+    <div class="card timer-card">
+      <h2>⏰ タイマー</h2>
+
+      <div class="timer-section">
+        <h3>スリープタイマー</h3>
+        <div class="timer-presets">
+          <button class="timer-btn" data-minutes="0">オフ</button>
+          <button class="timer-btn" data-minutes="30">30分</button>
+          <button class="timer-btn" data-minutes="60">1時間</button>
+          <button class="timer-btn" data-minutes="120">2時間</button>
+        </div>
+
+        <div class="timer-custom">
+          <label>カスタム:
+            <input type="number" id="timer-custom-input" min="1" max="480" value="45" />分
+          </label>
+          <button id="timer-custom-btn" class="timer-btn">設定</button>
+        </div>
+
+        <div class="timer-display" id="timer-display">
+          <span class="timer-label">残り時間:</span>
+          <span class="timer-remaining" id="timer-remaining">--:--</span>
+        </div>
+
+        <div class="timer-options">
+          <label>
+            <input type="checkbox" id="timer-fadeout" checked />
+            フェードアウト（最後の1分で徐々に音量を下げる）
+          </label>
+        </div>
+
+        <button id="timer-cancel-btn" class="timer-cancel-btn" disabled>タイマーをキャンセル</button>
+      </div>
+    </div>
+
+    <div class="debug-info">
+      <p>Status: <span id="status">Ready</span></p>
+    </div>
+  </div><!-- End of #app -->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
