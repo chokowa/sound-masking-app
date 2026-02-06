@@ -134,20 +134,23 @@ export class AudioEngine {
     private adaptiveSpeedValue = 0.5; // 反応速度 (Attack)
     private adaptiveDecayValue = 0.5; // 減衰時間 (Decay)
 
+    private isExplicitlyStopped = false;
+
     constructor() { }
 
     async init() {
         if (this.isInitialized) return;
 
-        this.ctx = new AudioContext({
-            latencyHint: 'playback'
-        });
+        // latencyHint to 'playback' caused issues with Mic input (Auto Mode) on Bluetooth.
+        // Reverting to default (interactive) but keeping strict state monitoring.
+        this.ctx = new AudioContext();
 
         // 状態監視: Bluetooth接続などでSuspendedになったら復帰を試みる
         this.ctx.onstatechange = () => {
             console.log(`AudioContext state changed to: ${this.ctx?.state}`);
-            if (this.ctx?.state === 'suspended') {
-                // ユーザー操作が必要な場合もあるが、可能な限り復帰を試行
+            // ユーザーが停止ボタンを押していないのにSuspendedになった場合のみ復帰
+            if (this.ctx?.state === 'suspended' && !this.isExplicitlyStopped) {
+                console.log('Auto-resuming audio context...');
                 this.ctx.resume().catch(e => console.warn('Auto-resume failed:', e));
             }
         };
@@ -483,6 +486,7 @@ export class AudioEngine {
 
     async resume() {
         if (!this.ctx) return;
+        this.isExplicitlyStopped = false; // 再開フラグ
         if (this.ctx.state === 'suspended') {
             await this.ctx.resume();
         }
@@ -490,6 +494,7 @@ export class AudioEngine {
 
     suspend() {
         if (!this.ctx) return;
+        this.isExplicitlyStopped = true; // 停止フラグ
         this.ctx.suspend();
         this.detector?.stop();
         this.stopAdaptiveLoop();
