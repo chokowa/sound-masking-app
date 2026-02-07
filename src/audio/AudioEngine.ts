@@ -811,7 +811,10 @@ export class AudioEngine {
         try {
             const response = await fetch(url);
             const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+            const rawBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+
+            // Apply Seamless Loop Processing (Crossfade End to Start)
+            const seamlessBuffer = this.createSeamlessBuffer(rawBuffer, 3.0); // 3-second overlap
 
             const gainNode = this.ctx.createGain();
             gainNode.gain.value = 0; // 初期状態はミュート
@@ -822,17 +825,73 @@ export class AudioEngine {
             }
 
             this.layers.set(id, {
-                buffer: audioBuffer,
+                buffer: seamlessBuffer,
                 gainNode: gainNode,
                 sourceNode: null,
                 isPlaying: false,
                 volume: 0
             });
 
-            console.log(`Loaded sound: ${id}`);
+            console.log(`Loaded sound: ${id} (Seamless processed)`);
         } catch (e) {
             console.error(`Failed to load sound ${id}:`, e);
         }
+    }
+
+    /**
+     * Create a seamless loop buffer by crossfading end into start
+     * @param buffer Original AudioBuffer
+     * @param overlap Duration of overlap in seconds
+     */
+    private createSeamlessBuffer(buffer: AudioBuffer, overlap: number): AudioBuffer {
+        if (!this.ctx) return buffer;
+        const duration = buffer.duration;
+
+        // If buffer is too short, skip or reduce overlap
+        if (duration < overlap * 2) {
+            overlap = duration / 4;
+            if (overlap < 0.1) return buffer; // Too short to process
+        }
+
+        const sampleRate = buffer.sampleRate;
+        const overlapSamples = Math.floor(overlap * sampleRate);
+        const newLength = buffer.length - overlapSamples;
+        const channels = buffer.numberOfChannels;
+
+        const newBuffer = this.ctx.createBuffer(channels, newLength, sampleRate);
+
+        for (let c = 0; c < channels; c++) {
+            const oldData = buffer.getChannelData(c);
+            const newData = newBuffer.getChannelData(c);
+
+            // 1. Copy the main body (Start to End-Overlap)
+            //    Note: The "Start" part will be mixed with the "End" part
+            //    The "End" part is the source of the fade-in
+
+            // Strategy:
+            // Loop Body: 0 to (Length - Overlap)
+            // We want NEW[0...Overlap] = Old[0...Overlap] * FadeIn + Old[Length-Overlap...Length] * FadeOut
+            // We want NEW[Overlap...End] = Old[Overlap...End]
+
+            for (let i = 0; i < newLength; i++) {
+                if (i < overlapSamples) {
+                    // Mixing Region (Start of new buffer)
+                    // Fade In (Old Start)
+                    const fadeIn = i / overlapSamples;
+                    // Fade Out (Old End)
+                    const fadeOut = 1.0 - fadeIn;
+
+                    const startSample = oldData[i];
+                    const endSample = oldData[buffer.length - overlapSamples + i];
+
+                    newData[i] = startSample * fadeIn + endSample * fadeOut;
+                } else {
+                    // Normal Region (Middle of old buffer)
+                    newData[i] = oldData[i];
+                }
+            }
+        }
+        return newBuffer;
     }
 
     setSoundVolume(id: string, volume: number) {
