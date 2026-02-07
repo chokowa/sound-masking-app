@@ -102,6 +102,7 @@ export class AudioEngine {
     private ctx: AudioContext | null = null;
     private noiseNode: AudioWorkletNode | null = null;
     private noiseGainNode: GainNode | null = null; // ノイズ専用マスターゲイン
+    private noiseMasterGainNode: GainNode | null = null; // Color + SubBass Master
 
     // ゲインノードを分離（直列接続）
     private baseGainNode: GainNode | null = null;      // 基本音量 (Global Master)
@@ -123,7 +124,12 @@ export class AudioEngine {
     private fluctuationStrength = 0.0;
     private fluctuationAnimationId: number | null = null;
 
-    // マイク入力用
+    // Density (Diffuser/Reverb)
+    private convolver: ConvolverNode | null = null;
+    private densityDryGain: GainNode | null = null;
+    private densityWetGain: GainNode | null = null;
+
+    // Density Properties Removed
     private inputScanParams: {
         stream: MediaStream | null,
         source: MediaStreamAudioSourceNode | null,
@@ -200,13 +206,17 @@ export class AudioEngine {
             this.adaptiveGainNode = this.ctx.createGain();
             this.reactiveGainNode = this.ctx.createGain();
             this.fluctuationGainNode = this.ctx.createGain(); // ゆらぎ用
+
+            this.noiseMasterGainNode = this.ctx.createGain(); // New Master
+
             this.analyser = this.ctx.createAnalyser();
 
             // 初期値設定
             this.baseGainNode.gain.value = this.baseVolume;
             this.adaptiveGainNode.gain.value = 1.0;
             this.reactiveGainNode.gain.value = 1.0;
-            this.fluctuationGainNode.gain.value = 1.0; // デフォルト1.0 (変化なし)
+            this.fluctuationGainNode.gain.value = 1.0;
+            this.noiseMasterGainNode.gain.value = 1.0; // Default
             this.analyser.fftSize = 2048;
 
             // EQフィルターを作成
@@ -219,18 +229,48 @@ export class AudioEngine {
                 return filter;
             });
 
-            // 接続: Noise -> NoiseGain -> EQ -> BaseGain -> AdaptiveGain -> ReactiveGain -> Analyser -> Output
-            this.noiseNode.connect(this.noiseGainNode);
-            this.noiseGainNode.connect(this.eqFilters[0]);
+            // 接続: 
+            // [Noise] -> noiseGainNode --+
+            //                            |-> noiseMasterGainNode -> EQ ...
+            // [Sub]   -> subBassGainNode -+
 
-            // Sub-BassもEQに通す（低音強調できるように）
+            this.noiseNode.connect(this.noiseGainNode);
+            this.noiseGainNode.connect(this.noiseMasterGainNode);
+
             this.subBassNode.connect(this.subBassGainNode);
-            this.subBassGainNode.connect(this.eqFilters[0]);
+            this.subBassGainNode.connect(this.noiseMasterGainNode);
+
+            this.noiseMasterGainNode.connect(this.eqFilters[0]);
 
             for (let i = 0; i < this.eqFilters.length - 1; i++) {
                 this.eqFilters[i].connect(this.eqFilters[i + 1]);
             }
-            this.eqFilters[this.eqFilters.length - 1].connect(this.baseGainNode);
+
+            // Density (Diffuser) Logic
+            // EQ output -> Dry/Wet split -> BaseGain
+            this.convolver = this.ctx.createConvolver();
+            this.convolver.normalize = false; // Disable auto-normalization to keep raw power
+            this.convolver.buffer = generateImpulseResponse(this.ctx, 2.5, 2.0); // Duration 2.5s, Decay 2.0
+            console.log('Density initialized: Convolver created');
+
+            this.densityDryGain = this.ctx.createGain();
+            this.densityWetGain = this.ctx.createGain();
+
+            // Default: 100% Dry
+            this.densityDryGain.gain.value = 1.0;
+            this.densityWetGain.gain.value = 0.0;
+
+            const eqOutput = this.eqFilters[this.eqFilters.length - 1];
+
+            // Routing
+            eqOutput.connect(this.densityDryGain);
+            eqOutput.connect(this.convolver);
+            this.convolver.connect(this.densityWetGain);
+
+            // Merge to BaseGain
+            this.densityDryGain.connect(this.baseGainNode);
+            this.densityWetGain.connect(this.baseGainNode);
+
             this.baseGainNode.connect(this.adaptiveGainNode);
             this.adaptiveGainNode.connect(this.reactiveGainNode);
             this.reactiveGainNode.connect(this.fluctuationGainNode);
@@ -597,8 +637,8 @@ export class AudioEngine {
 
     // New: Noise Master Volume
     setNoiseVolume(value: number) {
-        if (this.noiseGainNode && this.ctx) {
-            this.noiseGainNode.gain.setTargetAtTime(value, this.ctx.currentTime, 0.1);
+        if (this.noiseMasterGainNode && this.ctx) {
+            this.noiseMasterGainNode.gain.setTargetAtTime(value, this.ctx.currentTime, 0.1);
         }
     }
 
@@ -686,8 +726,52 @@ export class AudioEngine {
         this.fluctuationAnimationId = requestAnimationFrame(this.fluctuationLoop);
     };
 
+
+
     // ==========================================
-    // File Playback (Soundscapes)
+
+    /**
+     * Set Density (Mix between Dry and Wet)
+     * @param value 0.0 (Dry) to 1.0 (Wet)
+     */
+
+
+    /**
+     * Set Density (Mix between Dry and Wet)
+     * @param value 0.0 (Dry) to 1.0 (Wet)
+     */
+    //     this.densityWetGain.gain.setTargetAtTime(wet, this.ctx.currentTime, 0.1);
+    // }
+
+    /**
+     * Generate simple noise impulse response
+     * @param duration seconds
+     * @param decay decay rate
+     */
+    // Method removed
+    // private generateImpulseResponse(_duration: number, _decay: number): AudioBuffer {
+    //     return this.ctx!.createBuffer(2, 2, 44100);
+    // }
+
+    /**
+     * Set Density (Mix between Dry and Wet)
+     * @param value 0.0 (Dry) to 1.0 (Wet)
+     */
+    setDensity(value: number) {
+        if (!this.densityDryGain || !this.densityWetGain || !this.ctx || !this.convolver) return;
+
+        // Equal Power Crossfade
+        const dry = Math.cos(value * 0.5 * Math.PI);
+        const wet = Math.sin(value * 0.5 * Math.PI);
+
+        // Debug log (throttle)
+        if (Math.random() < 0.1 || value === 0 || value === 1) {
+            console.log(`setDensity: val=${value.toFixed(2)}, dry=${dry.toFixed(2)}, wet=${wet.toFixed(2)}`);
+        }
+
+        this.densityDryGain.gain.setTargetAtTime(dry, this.ctx.currentTime, 0.1);
+        this.densityWetGain.gain.setTargetAtTime(wet, this.ctx.currentTime, 0.1);
+    }
     // ==========================================
 
     private layers: Map<string, SoundLayer> = new Map();
@@ -821,3 +905,40 @@ interface SoundLayer {
     isPlaying: boolean;
     volume: number;
 }
+
+export function generateImpulseResponse(ctx: AudioContext, duration: number, decay: number): AudioBuffer {
+    const sampleRate = ctx.sampleRate;
+    const length = sampleRate * duration;
+    const impulse = ctx.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+
+    let lastL = 0;
+    let lastR = 0;
+    const gainScale = 0.05; // Significant reduction to match Dry level (since normalize is false)
+
+    for (let i = 0; i < length; i++) {
+        const n = i / length;
+        const e = Math.pow(1 - n, decay);
+
+        // Generate White Noise
+        let rawL = (Math.random() * 2 - 1);
+        let rawR = (Math.random() * 2 - 1);
+
+        // Simple Low-Pass Filter (Smoothing) for warmth
+        // y[i] = 0.5 * x[i] + 0.5 * y[i-1]
+        rawL = (rawL + lastL) * 0.5;
+        rawR = (rawR + lastR) * 0.5;
+        lastL = rawL;
+        lastR = rawR;
+
+        // Apply decay and volume scaling
+        left[i] = rawL * e * gainScale;
+        right[i] = rawR * e * gainScale;
+    }
+    return impulse;
+}
+
+
+
+

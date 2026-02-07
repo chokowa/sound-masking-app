@@ -449,38 +449,39 @@ interface Preset {
   mix: { w: number; p: number; b: number; d: number; s?: number }; // White, Pink, Brown, Dark, Sub
   eq: number[];      // 5バンドEQ値 [60Hz, 250Hz, 1kHz, 4kHz, 12kHz]
   volume: number;
+  density?: number; // 0.0 - 1.0 (Dry/Wet)
 }
 
 const PRESETS: Record<string, Preset> = {
   // 子供の走り回り (LH): < 63Hz, Deep Brown主体 + 60Hz Max Boost
-  footsteps_child: { mix: { w: 0, p: 0, b: 0.8, d: 0.8 }, eq: [12, 6, 0, -4, -8], volume: 0.20 },
+  footsteps_child: { mix: { w: 0, p: 0, b: 0.8, d: 0.8 }, eq: [12, 6, 0, -4, -8], volume: 0.20, density: 0.0 },
 
   // 大人の歩行 (LH): 63-250Hz, Brown/Pink Mix + 250Hz Boost
-  footsteps_adult: { mix: { w: 0, p: 0.2, b: 0.6, d: 0.4 }, eq: [4, 8, 2, 0, -4], volume: 0.18 },
+  footsteps_adult: { mix: { w: 0, p: 0.2, b: 0.6, d: 0.4 }, eq: [4, 8, 2, 0, -4], volume: 0.18, density: 0.0 },
 
   // 落下音 (LL): 100-500Hz, Pink主体 mid-range boost
-  impact_mid: { mix: { w: 0, p: 0.7, b: 0.3, d: 0.2 }, eq: [2, 6, 4, 0, -4], volume: 0.15 },
+  impact_mid: { mix: { w: 0, p: 0.7, b: 0.3, d: 0.2 }, eq: [2, 6, 4, 0, -4], volume: 0.15, density: 0.0 },
 
   // 話し声・テレビ: 100-3kHz, Pink/White Mix
-  voices: { mix: { w: 0.2, p: 0.6, b: 0.2, d: 0 }, eq: [-4, 4, 8, 4, -2], volume: 0.12 },
+  voices: { mix: { w: 0.2, p: 0.6, b: 0.2, d: 0 }, eq: [-4, 4, 8, 4, -2], volume: 0.12, density: 0.1 },
 
-  // 睡眠用: High cut for relaxation
-  sleep: { mix: { w: 0, p: 0, b: 1.0, d: 0.1 }, eq: [6, 4, 0, -6, -10], volume: 0.08 },
+  // 睡眠用: High cut for relaxation, High Density
+  sleep: { mix: { w: 0, p: 0, b: 1.0, d: 0.1 }, eq: [6, 4, 0, -6, -10], volume: 0.08, density: 0.6 },
 
-  // カフェ: White/Pink/Brown balanced
-  cafe: { mix: { w: 0.1, p: 0.4, b: 0.4, d: 0.1 }, eq: [2, 2, 2, 2, 0], volume: 0.12 },
+  // カフェ: White/Pink/Brown balanced, Medium Density
+  cafe: { mix: { w: 0.1, p: 0.4, b: 0.4, d: 0.1 }, eq: [2, 2, 2, 2, 0], volume: 0.12, density: 0.3 },
 
-  // 瞑想: Deep Brown + Sub
-  deep_focus: { mix: { w: 0, p: 0, b: 0.5, d: 0.5, s: 0.3 }, eq: [4, 0, 0, -5, -10], volume: 0.15 },
+  // 瞑想: Deep Brown + Sub, High Density
+  deep_focus: { mix: { w: 0, p: 0, b: 0.5, d: 0.5, s: 0.3 }, eq: [4, 0, 0, -5, -10], volume: 0.15, density: 0.5 },
 
   // 集中用: Pink/Brown Mix
-  focus: { mix: { w: 0, p: 0.6, b: 0.4, d: 0 }, eq: [2, 2, 0, 0, -2], volume: 0.1 },
+  focus: { mix: { w: 0, p: 0.6, b: 0.4, d: 0 }, eq: [2, 2, 0, 0, -2], volume: 0.1, density: 0.0 },
 
   // 耳鳴り/高音対策: > 4kHz, White + High Boost
-  tinnitus: { mix: { w: 0.4, p: 0.1, b: 0, d: 0 }, eq: [-12, -6, 0, 6, 12], volume: 0.05 },
+  tinnitus: { mix: { w: 0.4, p: 0.1, b: 0, d: 0 }, eq: [-12, -6, 0, 6, 12], volume: 0.05, density: 0.2 },
 
   // フラット
-  flat: { mix: { w: 0.5, p: 0, b: 0, d: 0 }, eq: [0, 0, 0, 0, 0], volume: 0.1 }
+  flat: { mix: { w: 0.5, p: 0, b: 0, d: 0 }, eq: [0, 0, 0, 0, 0], volume: 0.1, density: 0.0 }
 };
 
 // プリセット適用関数
@@ -511,7 +512,16 @@ function applyPreset(presetName: string) {
   // ボリューム設定
   engine.setVolume(preset.volume);
   volumeSlider.value = String(preset.volume);
+  engine.setVolume(preset.volume);
   volumeValue.textContent = preset.volume.toFixed(2);
+
+  // Density
+  if (preset.density !== undefined) {
+    const d = preset.density;
+    densitySlider.value = String(d);
+    densityValue.textContent = d.toFixed(2);
+    engine.setDensity(d);
+  }
 
   // アクティブ表示
   document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
@@ -561,6 +571,9 @@ interface CustomSlotData {
   // New V5: Fluctuation
   fluctuationEnabled?: boolean;
   fluctuationStrength?: number;
+
+  // New V6: Density
+  density?: number;
 
   savedAt: string;
 }
@@ -632,15 +645,28 @@ function getCurrentSettings(): CustomSlotData {
 
     fluctuationEnabled,
     fluctuationStrength,
+    density: parseFloat(densitySlider.value),
     savedAt: new Date().toISOString()
   };
 }
 
-// Fluctuation Elements
+// 1/f Fluctuation Controls
 const fluctuationCheck = document.getElementById('fluctuation-check') as HTMLInputElement;
 const fluctuationStrengthSlider = document.getElementById('fluctuation-strength-slider') as HTMLInputElement;
 const fluctuationStrengthValue = document.getElementById('fluctuation-strength-value') as HTMLSpanElement;
 
+// Density Controls
+const densitySlider = document.getElementById('density-slider') as HTMLInputElement;
+const densityValue = document.getElementById('density-value') as HTMLSpanElement;
+
+// Density Event
+densitySlider.addEventListener('input', (e) => {
+  const val = parseFloat((e.target as HTMLInputElement).value);
+  densityValue.textContent = val.toFixed(2);
+  engine.setDensity(val);
+});
+
+// 1/f Fluctuation Events
 fluctuationCheck.addEventListener('change', (e) => {
   const checked = (e.target as HTMLInputElement).checked;
   engine.setFluctuation(checked);
@@ -736,22 +762,43 @@ function loadFromSlot(slotId: string) {
   }
 
   // Soundscapes復元 (一度全てリセットしてから適用)
-  // まず全てのSoundSliderを0にする
   document.querySelectorAll('.sound-slider').forEach((slider) => {
     const s = slider as HTMLInputElement;
-    s.value = '0';
     const id = s.dataset.sound;
-    if (id) engine.setSoundVolume(id, 0);
+
+    let vol = 0;
+    if (slotData.soundscapes && id && slotData.soundscapes[id] !== undefined) {
+      vol = slotData.soundscapes[id];
+    }
+
+    s.value = String(vol);
+    if (id) engine.setSoundVolume(id, vol);
   });
 
-  if (slotData.soundscapes) {
-    Object.entries(slotData.soundscapes).forEach(([id, vol]) => {
-      engine.setSoundVolume(id, vol);
-      const s = document.querySelector(`.sound-slider[data-sound="${id}"]`) as HTMLInputElement;
-      if (s) {
-        s.value = String(vol);
-      }
-    });
+  // Fluctuation
+  if (slotData.fluctuationEnabled !== undefined) {
+    fluctuationCheck.checked = slotData.fluctuationEnabled;
+    engine.setFluctuation(slotData.fluctuationEnabled);
+  } else {
+    fluctuationCheck.checked = false;
+    engine.setFluctuation(false);
+  }
+
+  if (slotData.fluctuationStrength !== undefined) {
+    fluctuationStrengthSlider.value = String(slotData.fluctuationStrength);
+    fluctuationStrengthValue.textContent = slotData.fluctuationStrength.toFixed(1);
+    engine.setFluctuationStrength(slotData.fluctuationStrength);
+  }
+
+  // Density
+  if (slotData.density !== undefined) {
+    densitySlider.value = String(slotData.density);
+    densityValue.textContent = slotData.density.toFixed(2);
+    engine.setDensity(slotData.density);
+  } else {
+    densitySlider.value = "0";
+    densityValue.textContent = "0.00";
+    engine.setDensity(0);
   }
 
   // Auto Masking復元 (V4)
@@ -769,7 +816,13 @@ function loadFromSlot(slotId: string) {
         cb.checked = slotData.detailedBands.includes(cb.dataset.band || '');
       });
       // Apply
-      applyDetailedModeFromCheckboxes();
+      // applyDetailedModeFromCheckboxes(); // Function might not be defined or needed if event listener handles it?
+      // Checkboxes change event updates engine? Yes.
+      // Manually trigger update
+      document.querySelectorAll('.band-check input[type="checkbox"]').forEach((c) => {
+        c.dispatchEvent(new Event('change'));
+      });
+
     } else {
       simpleModeBtn.click();
       // Click corresponding simple mode button
@@ -801,20 +854,6 @@ function loadFromSlot(slotId: string) {
     reactiveDurationSlider.value = String(slotData.reactiveDuration);
     reactiveDurationValue.textContent = String(slotData.reactiveDuration);
     engine.setReactiveBoostDuration(slotData.reactiveDuration);
-  }
-
-  // Fluctuation復元
-  if (slotData.fluctuationEnabled !== undefined) {
-    fluctuationCheck.checked = slotData.fluctuationEnabled;
-    engine.setFluctuation(slotData.fluctuationEnabled);
-  } else {
-    fluctuationCheck.checked = false;
-    engine.setFluctuation(false);
-  }
-  if (slotData.fluctuationStrength !== undefined) {
-    fluctuationStrengthSlider.value = String(slotData.fluctuationStrength);
-    fluctuationStrengthValue.textContent = slotData.fluctuationStrength.toFixed(1);
-    engine.setFluctuationStrength(slotData.fluctuationStrength);
   }
 
   // プリセットのアクティブ表示をクリア
