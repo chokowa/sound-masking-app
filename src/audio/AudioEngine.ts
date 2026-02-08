@@ -11,6 +11,7 @@ const EQ_BANDS = [
 ];
 
 // AudioWorklet Code (Embedded to avoid GitHub Pages loading issues)
+// @ts-ignore
 const processorCode = `
 class NoiseProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -24,6 +25,10 @@ class NoiseProcessor extends AudioWorkletProcessor {
     this.b6 = 0;
     this.lastBrown = 0;
     this.lastDark = 0;
+    this.rumblePhase1 = 0;
+    this.rumblePhase2 = 0;
+    this.rumblePhase3 = 0;
+    this.rumbleModPhase = 0;
   }
 
   static get parameterDescriptors() {
@@ -32,6 +37,9 @@ class NoiseProcessor extends AudioWorkletProcessor {
       { name: 'pinkGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'brownGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'darkGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'rumbleGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'rumbleFreq', defaultValue: 55, minValue: 20, maxValue: 300, automationRate: 'k-rate' },
+      { name: 'rumbleSpeed', defaultValue: 1, minValue: 0.1, maxValue: 10, automationRate: 'k-rate' },
       { name: 'masterGain', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'a-rate' }
     ];
   }
@@ -42,14 +50,20 @@ class NoiseProcessor extends AudioWorkletProcessor {
     const pinkGainParam = parameters['pinkGain'];
     const brownGainParam = parameters['brownGain'];
     const darkGainParam = parameters['darkGain'];
+    const rumbleGainParam = parameters['rumbleGain'];
+    const rumbleFreqParam = parameters['rumbleFreq'];
+    const rumbleSpeedParam = parameters['rumbleSpeed'];
     const masterGainParam = parameters['masterGain'];
 
     const wGain = whiteGainParam[0];
     const pGain = pinkGainParam[0];
     const bGain = brownGainParam[0];
     const dGain = darkGainParam[0];
+    const rGain = rumbleGainParam[0];
+    const rFreq = rumbleFreqParam ? rumbleFreqParam[0] : 55;
+    const rSpeed = rumbleSpeedParam ? rumbleSpeedParam[0] : 1;
 
-    if (wGain === 0 && pGain === 0 && bGain === 0 && dGain === 0) {
+    if (wGain === 0 && pGain === 0 && bGain === 0 && dGain === 0 && rGain === 0) {
       for (let c = 0; c < output.length; c++) {
         output[c].fill(0);
       }
@@ -61,6 +75,12 @@ class NoiseProcessor extends AudioWorkletProcessor {
       const channel = output[c];
       const len = channel.length;
       const shouldUseArray = masterGainParam.length > 1;
+      const sampleRate = globalThis.sampleRate || 44100;
+      
+      const inc1 = (2 * Math.PI * rFreq) / sampleRate;
+      const inc2 = (2 * Math.PI * rFreq * 1.13) / sampleRate;
+      const inc3 = (2 * Math.PI * rFreq * 1.31) / sampleRate;
+      const modInc = (2 * Math.PI * rSpeed) / sampleRate;
 
       for (let i = 0; i < len; i++) {
         const mGain = shouldUseArray ? masterGainParam[i] : masterGainParam[0];
@@ -88,6 +108,27 @@ class NoiseProcessor extends AudioWorkletProcessor {
         const darkUpdate = (this.lastDark + (0.005 * white)) / 1.005;
         this.lastDark = darkUpdate;
         if (dGain > 0) mixedOutput += (darkUpdate * 4.0) * dGain;
+        
+        if (rGain > 0) {
+          this.rumblePhase1 += inc1;
+          this.rumblePhase2 += inc2;
+          this.rumblePhase3 += inc3;
+          this.rumbleModPhase += modInc;
+          
+          if (this.rumblePhase1 > 2 * Math.PI) this.rumblePhase1 -= 2 * Math.PI;
+          if (this.rumblePhase2 > 2 * Math.PI) this.rumblePhase2 -= 2 * Math.PI;
+          if (this.rumblePhase3 > 2 * Math.PI) this.rumblePhase3 -= 2 * Math.PI;
+          if (this.rumbleModPhase > 2 * Math.PI) this.rumbleModPhase -= 2 * Math.PI;
+          
+          let rumble = Math.sin(this.rumblePhase1) * 0.5 + 
+                       Math.sin(this.rumblePhase2) * 0.3 + 
+                       Math.sin(this.rumblePhase3) * 0.2;
+                       
+          const mod = 1.0 + Math.sin(this.rumbleModPhase) * 0.3;
+          rumble *= mod;
+                         
+          mixedOutput += rumble * rGain * 0.8;
+        }
 
         channel[i] = mixedOutput * mGain;
       }
@@ -566,6 +607,36 @@ export class AudioEngine {
         this.adaptiveDecayValue = val;
     }
 
+    // Force Mute Immediately (No Fade)
+    muteImmediate() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+
+        // Helper to zero out a gain node
+        const zero = (node: GainNode | null) => {
+            if (node) {
+                node.gain.cancelScheduledValues(t);
+                node.gain.setValueAtTime(0, t);
+            }
+        };
+
+        zero(this.baseGainNode);
+        zero(this.noiseMasterGainNode);
+        zero(this.soundscapeMasterGain);
+        zero(this.subBassGainNode);
+
+
+        // Also mute rumble if possible (it's inside noiseNode param)
+        if (this.noiseNode) {
+            const r = this.noiseNode.parameters.get('rumbleGain');
+            if (r) {
+                r.cancelScheduledValues(t);
+                r.setValueAtTime(0, t);
+            }
+        }
+    }
+
+
     setDetectionSimpleMode(modeId: string) {
         if (this.detector) {
             this.detector.setSimpleMode(modeId);
@@ -606,7 +677,7 @@ export class AudioEngine {
     }
 
     // ノイズミキシング設定 (0.0 - 1.0)
-    setNoiseMix(white: number, pink: number, brown: number, dark: number) {
+    setNoiseMix(white: number, pink: number, brown: number, dark: number, rumble?: number) {
         if (!this.noiseNode) return;
         const params = this.noiseNode.parameters;
 
@@ -615,6 +686,7 @@ export class AudioEngine {
         if (params.has('pinkGain')) params.get('pinkGain')!.setValueAtTime(pink, this.ctx!.currentTime);
         if (params.has('brownGain')) params.get('brownGain')!.setValueAtTime(brown, this.ctx!.currentTime);
         if (params.has('darkGain')) params.get('darkGain')!.setValueAtTime(dark, this.ctx!.currentTime);
+        if (rumble !== undefined && params.has('rumbleGain')) params.get('rumbleGain')!.setValueAtTime(rumble, this.ctx!.currentTime);
     }
 
     setNoiseType(type: number) {
@@ -654,6 +726,34 @@ export class AudioEngine {
         if (this.subBassGainNode && this.ctx) {
             this.subBassGainNode.gain.setTargetAtTime(value, this.ctx.currentTime, 0.1);
         }
+    }
+
+    // Sub-Bass Frequency (20Hz - 200Hz)
+    setSubBassFrequency(value: number) {
+        if (this.subBassNode && this.ctx) {
+            // 安全策: 範囲制限
+            const safeFreq = Math.max(20, Math.min(value, 200));
+            this.subBassNode.frequency.setTargetAtTime(safeFreq, this.ctx.currentTime, 0.1);
+        }
+    }
+
+    // Rumble Volume (0.0 - 1.0)
+    setRumbleVolume(volume: number) {
+        if (!this.noiseNode) return;
+        const param = this.noiseNode.parameters.get('rumbleGain');
+        if (param) param.setTargetAtTime(volume, this.ctx!.currentTime, 0.1);
+    }
+
+    setRumbleFrequency(freq: number) {
+        if (!this.noiseNode) return;
+        const param = this.noiseNode.parameters.get('rumbleFreq');
+        if (param) param.setValueAtTime(freq, this.ctx!.currentTime);
+    }
+
+    setRumbleSpeed(speed: number) {
+        if (!this.noiseNode) return;
+        const param = this.noiseNode.parameters.get('rumbleSpeed');
+        if (param) param.setValueAtTime(speed, this.ctx!.currentTime);
     }
 
     // ==========================================

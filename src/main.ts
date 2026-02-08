@@ -1,6 +1,8 @@
 import './style.css'
 import { AudioEngine } from './audio/AudioEngine';
 import { Visualizer } from './audio/Visualizer';
+import { MeisterWizard } from './ui/meister-wizard';
+
 
 const engine = new AudioEngine();
 const visualizer = new Visualizer('visualizer');
@@ -148,9 +150,31 @@ startBtn.addEventListener('click', async () => {
 
     // 現在の音量を適用
     engine.setVolume(parseFloat(volumeSlider.value));
+    engine.setNoiseVolume(parseFloat(noiseSlider.value));
+    engine.setSoundscapeVolume(parseFloat(soundSlider.value));
 
-    // 初期設定を適用
-    updateMixer();
+    // 他のパラメータもUIから念のため適用
+    // (SubBass, Rumbleなどはスロットロードで適用されるが、手動変更後停止->再開の場合に備える)
+
+
+
+    // 初期状態の設定
+    const slots = loadSlotData(); // Define slots here
+    if (Object.keys(slots).length > 0 && slots['slot-1']) {
+
+      // Load slot-1 if exists
+      loadFromSlot('slot-1');
+    } else {
+      // Default
+      applyMixerUI(0, 0.5, 0, 0, 0, 55, 0, 55, 1.0);
+      engine.setNoiseMix(0, 0.5, 0, 0);
+      engine.setSubBassVolume(0);
+      engine.setSubBassFrequency(55);
+      engine.setRumbleVolume(0);
+      engine.setRumbleFrequency(55);
+      engine.setRumbleSpeed(1.0);
+    }
+
     engine.setVolume(parseFloat(volumeSlider.value));
     engine.setNoiseVolume(parseFloat(noiseSlider.value));
     engine.setSoundscapeVolume(parseFloat(soundSlider.value));
@@ -398,6 +422,14 @@ const valDark = document.getElementById('val-dark') as HTMLSpanElement;
 // Sub-Bass
 const mixSubSlider = document.getElementById('mix-sub') as HTMLInputElement;
 const valSub = document.getElementById('val-sub') as HTMLSpanElement;
+const subFreqSlider = document.getElementById('sub-freq') as HTMLInputElement; // New
+const valSubFreq = document.getElementById('val-sub-freq') as HTMLSpanElement; // New
+const mixRumbleSlider = document.getElementById('mix-rumble') as HTMLInputElement; // New
+const valRumble = document.getElementById('val-rumble') as HTMLSpanElement; // New
+const rumbleFreqSlider = document.getElementById('rumble-freq') as HTMLInputElement; // New
+const valRumbleFreq = document.getElementById('val-rumble-freq') as HTMLSpanElement; // New
+const rumbleSpeedSlider = document.getElementById('rumble-speed') as HTMLInputElement; // New
+const valRumbleSpeed = document.getElementById('val-rumble-speed') as HTMLSpanElement; // New
 
 // Mixer Event Handlers
 function updateMixer() {
@@ -406,47 +438,56 @@ function updateMixer() {
   const b = parseFloat(mixBrownSlider.value);
   const d = parseFloat(mixDarkSlider.value);
   const s = parseFloat(mixSubSlider.value);
+  const sf = parseFloat(subFreqSlider.value); // New
+  const r = parseFloat(mixRumbleSlider.value); // New
 
   valWhite.textContent = Math.round(w * 100) + '%';
   valPink.textContent = Math.round(p * 100) + '%';
   valBrown.textContent = Math.round(b * 100) + '%';
   valDark.textContent = Math.round(d * 100) + '%';
   valSub.textContent = Math.round(s * 100) + '%';
+  valSubFreq.textContent = sf.toFixed(0) + 'Hz'; // New
+  valRumble.textContent = Math.round(r * 100) + '%'; // New
 
+  const rf = parseFloat(rumbleFreqSlider.value);
+  const rs = parseFloat(rumbleSpeedSlider.value);
+  valRumbleFreq.textContent = rf.toFixed(0) + 'Hz';
+  valRumbleSpeed.textContent = rs.toFixed(1) + 'Hz';
+  // Rumble (r) is handled separately by setRumbleVolume for smoothing
   engine.setNoiseMix(w, p, b, d);
   engine.setSubBassVolume(s);
+  engine.setSubBassFrequency(sf);
+  engine.setRumbleVolume(r);
+  engine.setRumbleFrequency(rf); // New
+  engine.setRumbleSpeed(rs); // New
 }
 
 // UI更新ヘルパー (プリセット適用時などに使う)
-function applyMixerUI(w: number, p: number, b: number, d: number, s: number) {
+function applyMixerUI(w: number, p: number, b: number, d: number, s: number, sf: number, r: number, rf: number, rs: number) {
   mixWhiteSlider.value = String(w);
   mixPinkSlider.value = String(p);
   mixBrownSlider.value = String(b);
   mixDarkSlider.value = String(d);
   mixSubSlider.value = String(s);
-
-  // engineへの送信はupdateMixer内で行うが、
-  // UIから呼ばれた場合と区別するためここでは呼び出さず、
-  // 値表示の更新だけ行うか、あるいは updateMixer を呼ぶか。
-  // ここではシンプルに呼び出し元で一括管理するため、
-  // applyMixerUIは「スライダーと数値表示の更新」に徹するべきだが、
-  // 既存コードで applyMixerUI(...) の後に engine.setNoiseMix を呼んでいるので、
-  // ここではUI更新のみを行う。
-
-  valWhite.textContent = Math.round(w * 100) + '%';
-  valPink.textContent = Math.round(p * 100) + '%';
-  valBrown.textContent = Math.round(b * 100) + '%';
-  valDark.textContent = Math.round(d * 100) + '%';
+  subFreqSlider.value = String(sf);
+  mixRumbleSlider.value = String(r);
+  rumbleFreqSlider.value = String(rf);
+  rumbleSpeedSlider.value = String(rs);
+  updateMixer();
 }
 
 [mixWhiteSlider, mixPinkSlider, mixBrownSlider, mixDarkSlider, mixSubSlider].forEach(slider => {
   slider.addEventListener('input', updateMixer);
 });
+subFreqSlider.addEventListener('input', updateMixer); // New
+mixRumbleSlider.addEventListener('input', updateMixer); // New
+rumbleFreqSlider.addEventListener('input', updateMixer); // New
+rumbleSpeedSlider.addEventListener('input', updateMixer); // New
 
 // プリセット定義（リサーチ資料に基づく最適設定）
 // プリセット定義（リサーチ資料に基づく最適設定）
 interface Preset {
-  mix: { w: number; p: number; b: number; d: number; s?: number }; // White, Pink, Brown, Dark, Sub
+  mix: { w: number; p: number; b: number; d: number; s?: number; r?: number; sf?: number; rf?: number; rs?: number }; // White, Pink, Brown, Dark, Sub, Rumble, SubFreq, RumbleFreq, RumbleSpeed
   eq: number[];      // 5バンドEQ値 [60Hz, 250Hz, 1kHz, 4kHz, 12kHz]
   volume: number;
   density?: number; // 0.0 - 1.0 (Dry/Wet)
@@ -492,9 +533,19 @@ function applyPreset(presetName: string) {
   // ノイズミキシング設定適用
   const m = preset.mix;
   const s = m.s || 0;
-  applyMixerUI(m.w, m.p, m.b, m.d, s);
-  engine.setNoiseMix(m.w, m.p, m.b, m.d);
+  const sf = m.sf || 55; // New: default to 55Hz
+  const r = m.r || 0; // New: default to 0
+  const rf = m.rf || 55; // New
+  const rs = m.rs || 1.0; // New
+  applyMixerUI(m.w, m.p, m.b, m.d, s, sf, r, rf, rs); // Added sf, r, rf, rs
+
+  engine.setNoiseMix(m.w, m.p, m.b, m.d); // Don't pass r here
   engine.setSubBassVolume(s);
+  engine.setSubBassFrequency(sf);
+  engine.setRumbleVolume(r); // Use setTargetAtTime for consistency
+  engine.setRumbleFrequency(rf);
+  engine.setRumbleSpeed(rs);
+
 
   // EQ設定
   preset.eq.forEach((gain, index) => {
@@ -547,7 +598,7 @@ presetBtns.forEach((btn) => {
 const SLOT_STORAGE_KEY = 'soundmasking_custom_slots_v2'; // v2へ移行
 
 interface CustomSlotData {
-  mix: { w: number; p: number; b: number; d: number; s?: number }; // Sub added
+  mix: { w: number; p: number; b: number; d: number; s?: number; r?: number; sf?: number; rf?: number; rs?: number }; // Sub, Rumble, SubFreq, RumbleFreq, RumbleSpeed added
   eq: number[];
   volume: number;
   noiseVolume: number; // New V3
@@ -585,7 +636,11 @@ function getCurrentSettings(): CustomSlotData {
     p: parseFloat(mixPinkSlider.value),
     b: parseFloat(mixBrownSlider.value),
     d: parseFloat(mixDarkSlider.value),
-    s: parseFloat(mixSubSlider.value)
+    s: parseFloat(mixSubSlider.value),
+    sf: parseFloat(subFreqSlider.value), // New
+    r: parseFloat(mixRumbleSlider.value), // New
+    rf: parseFloat(rumbleFreqSlider.value), // New
+    rs: parseFloat(rumbleSpeedSlider.value) // New
   };
 
   const eq: number[] = [];
@@ -719,14 +774,19 @@ function loadFromSlot(slotId: string) {
     else if (type === 1) p = 1;
     else b = 1;
 
-    applyMixerUI(w, p, b, d, s);
+    applyMixerUI(w, p, b, d, s, 55, 0, 55, 1.0); // Updated arguments
     engine.setNoiseMix(w, p, b, d);
     engine.setSubBassVolume(s);
   } else if (slotData.mix) {
     const m = slotData.mix;
-    // 古いデータにはsがないかもしれないのでチェック
+    // 古いデータにはs, sf, r, rf, rsがないかもしれないのでチェック
     const s = (m as any).s || 0;
-    applyMixerUI(m.w, m.p, m.b, m.d, s);
+    const sf = (m as any).sf || 55;
+    const r = (m as any).r || 0;
+    const rf = (m as any).rf || 55;
+    const rs = (m as any).rs || 1.0;
+
+    applyMixerUI(m.w, m.p, m.b, m.d, s, sf, r, rf, rs); // Updated arguments
     engine.setNoiseMix(m.w, m.p, m.b, m.d);
     engine.setSubBassVolume(s);
   }
@@ -1097,21 +1157,6 @@ async function initAndLoadSounds() {
   console.log('All soundscapes loaded');
 }
 
-// Startボタンフックへの追加
-// 既存のstartBtnリスナー内で engine.init() が呼ばれるが、
-// ここで追加の非同期処理を差し込むのは少し難しい（既存コードを書き換える必要がある）。
-// なので、既存の startBtn リスナーの冒頭で呼ばれる engine.init() はそのままに、
-// 別でリスナーを追加して、そこでロードを行う。
-// ただし、AudioContextのresumeが必要なため、既存リスナーとタイミングを合わせる必要がある。
-// 一番確実なのは既存の startBtn.addEventListener を書き換えることだが、
-// ここではシンプルに「追加のリスナー」として登録し、その中でロードを発火する。
-// AudioEngineのinitは冪等性がある（isInitializedチェックがある）ので、
-// startBtnが非同期で複数回呼ばれても大丈夫なはずだが、
-// 念のため、既存の startBtn 内で engine.init() された後にロードが走るようにしたい。
-
-// 既存の startBtn リスナーを書き換える方が安全。
-// 上部の startBtn.addEventListener を書き換える。
-
 // Tab Switching
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -1147,4 +1192,134 @@ document.querySelectorAll('.sound-slider').forEach(slider => {
     }
   });
 });
+
+// Meister Wizard Initialization
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupMeisterMode);
+} else {
+  setupMeisterMode();
+}
+
+function setupMeisterMode() {
+  const btn = document.getElementById('meister-btn');
+  if (btn) {
+    // Use onclick to ensure only ONE listener exists, even if this function runs multiple times (e.g. HMR)
+    btn.onclick = async () => {
+      console.log('[Meister] Button clicked (onclick handler)');
+
+      // Disable Main Controls to prevent accidental clicks behind overlay
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+
+      // Ensure engine is initialized
+      if (!engine.isInitialized) {
+        console.log('[Meister] Initializing engine...');
+        await engine.init();
+      }
+
+      // Check PREVIOUS state before we force resume
+      // CAPTURE STATE NOW - Use stopBtn.disabled as the source of truth
+      // If stopBtn is enabled (not disabled), it means audio is currently playing
+      const wasPlayingBeforeMeister = !stopBtn.disabled;
+      console.log('[Meister] Was playing before:', wasPlayingBeforeMeister);
+
+      // Mute Main Audio FIRST to avoid pop
+      // Use muteImmediate to prevent any sound leakage
+      engine.muteImmediate();
+
+      // Resume if suspended (Required for Simulator)
+      // @ts-ignore
+      if (engine['ctx'].state === 'suspended') {
+        console.log('[Meister] Resuming AudioContext for Simulator...');
+        await engine.resume();
+      }
+
+      const restoreState = () => {
+        console.log('[Meister] restoreState called. WasPlaying:', wasPlayingBeforeMeister);
+
+        // If it was playing, restore volumes and ensure UI is running
+        if (wasPlayingBeforeMeister) {
+          const noiseVol = parseFloat(noiseSlider.value) || 0;
+          const soundVol = parseFloat(soundSlider.value) || 0;
+
+          console.log('[Meister] Restoring to RUNNING. Vol:', noiseVol, soundVol);
+          engine.setNoiseVolume(noiseVol);
+          engine.setSoundscapeVolume(soundVol);
+
+          // Restore button state manually instead of updatePlayButtonState to ensure correct timing
+          statusEl.textContent = 'Running';
+          statusEl.className = 'status-running';
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        } else {
+          // STOPPED STATE:
+          console.log('[Meister] Restoring to STOPPED. Suspending engine.');
+
+          // Suspend engine to stop processing
+          engine.suspend();
+
+          // Restore button state with delay to prevent click-through
+          statusEl.textContent = 'Stopped';
+          statusEl.className = 'status-stopped';
+          setTimeout(() => {
+            startBtn.disabled = false;
+          }, 300); // Wait for click event to pass
+          stopBtn.disabled = true;
+        }
+      };
+
+      // @ts-ignore
+      const ctx = engine['ctx'] as AudioContext;
+
+      // Always create new instance for clean state
+      const meister = new MeisterWizard(
+        ctx,
+        // onComplete (Save)
+        (name, settings) => {
+          console.log('[Meister] onComplete (Save). Settings:', settings);
+
+          // Apply Settings Logic...
+          const m = settings.mix;
+
+          applyMixerUI(m.w, m.p, m.b, m.d, m.s || 0, m.sf || 55, m.r || 0, m.rf || 55, m.rs || 1.0);
+          engine.setNoiseMix(m.w, m.p, m.b, m.d);
+          engine.setSubBassVolume(m.s || 0);
+          engine.setSubBassFrequency(m.sf || 55);
+          engine.setRumbleVolume(m.r || 0);
+          engine.setRumbleFrequency(m.rf || 55);
+          engine.setRumbleSpeed(m.rs || 1.0);
+
+          if (settings.eq) {
+            settings.eq.forEach((val: number, i: number) => {
+              engine.setEQBand(i, val);
+              const slider = document.querySelector(`.eq-slider[data-band="${i}"]`) as HTMLInputElement;
+              if (slider) slider.value = String(val);
+            });
+          }
+
+          // Update sliders if settings have volume info
+          if (settings.noiseVolume !== undefined) {
+            noiseSlider.value = String(settings.noiseVolume);
+            noiseValue.textContent = settings.noiseVolume.toFixed(2);
+          }
+          if (settings.soundVolume !== undefined) {
+            soundSlider.value = String(settings.soundVolume);
+            soundValue.textContent = settings.soundVolume.toFixed(2);
+          }
+
+          console.log("Applied Meister Settings:", name);
+          // restoreState will be called by onClose next
+        },
+        // onClose (Called after Save OR on Cancel)
+        () => {
+          console.log('[Meister] onClose called');
+          restoreState();
+        }
+      );
+
+      meister.open();
+    };
+  }
+}
+
 

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Masking - Cockpit Style</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --accent: #ff8c00;
+            /* Orange */
+            --text-main: #e0e0e0;
+            --text-sub: #888;
+            --border: #333;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            /* Mobile width simulation */
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: auto auto auto 1fr auto;
+            gap: 12px;
+        }
+
+        /* Header */
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .status {
+            font-size: 0.8rem;
+            color: var(--accent);
+        }
+
+        /* Cards (Bento) */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .card.large {
+            grid-column: 1 / -1;
+        }
+
+        .card.tall {
+            grid-row: span 2;
+        }
+
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+        }
+
+        /* Controls */
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .slider-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slider-row label {
+            font-size: 0.85rem;
+            width: 50px;
+        }
+
+        input[type=range] {
+            flex: 1;
+            margin: 0 10px;
+            accent-color: var(--accent);
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            appearance: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--text-main);
+            border-radius: 50%;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Visualizer (Fake) */
+        .visualizer-screen {
+            height: 80px;
+            background: #000;
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            padding: 0 5px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .bar {
+            width: 8%;
+            background: var(--accent);
+            opacity: 0.7;
+        }
+
+        /* Footer / Master */
+        .footer {
+            grid-column: 1 / -1;
+            position: sticky;
+            bottom: 20px;
+            background: rgba(30, 30, 30, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 16px;
+            border: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .play-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            color: #000;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        /* Toggle Switch */
+        .toggle {
+            width: 40px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .toggle.on {
+            background: var(--accent);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        .toggle.on::after {
+            left: 22px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>COCKPIT</h1>
+            <span class="status">● ONLINE</span>
+        </header>
+
+        <!-- Visualizer & Info -->
+        <div class="card large">
+            <h2>Spectrum Analysis</h2>
+            <div class="visualizer-screen">
+                <div class="bar" style="height: 40%"></div>
+                <div class="bar" style="height: 70%"></div>
+                <div class="bar" style="height: 50%"></div>
+                <div class="bar" style="height: 80%"></div>
+                <div class="bar" style="height: 30%"></div>
+                <div class="bar" style="height: 60%"></div>
+                <div class="bar" style="height: 90%"></div>
+                <div class="bar" style="height: 40%"></div>
+                <div class="bar" style="height: 20%"></div>
+                <div class="bar" style="height: 50%"></div>
+            </div>
+        </div>
+
+        <!-- Noise Mixer -->
+        <div class="card large">
+            <h2>Noise Mixer</h2>
+            <div class="slider-group">
+                <div class="slider-row">
+                    <label>Brown</label>
+                    <input type="range" value="80">
+                </div>
+                <div class="slider-row">
+                    <label>Pink</label>
+                    <input type="range" value="40">
+                </div>
+                <div class="slider-row">
+                    <label>White</label>
+                    <input type="range" value="0">
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Masking -->
+        <div class="card">
+            <h2>Auto Mask</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span>Enable</span>
+                <div class="toggle on"></div>
+            </div>
+            <div style="font-size: 0.8rem; color: #888;">
+                Sens: High<br>
+                Vol: +2.5dB
+            </div>
+        </div>
+
+        <!-- Timer -->
+        <div class="card">
+            <h2>Timer</h2>
+            <div style="font-size: 1.5rem; text-align: center; font-family: monospace;">45:00</div>
+            <div style="text-align: center; font-size: 0.8rem; margin-top: 5px; color: var(--accent);">Active</div>
+        </div>
+
+        <!-- EQ (Bottom) -->
+        <div class="card large">
+            <h2>5-Band EQ</h2>
+            <div style="display: flex; justify-content: space-between; height: 60px; align-items: flex-end;">
+                <div style="width: 15%; background: #333; height: 80%; border-radius: 4px;"></div>
+                <div style="width: 15%; background: #333; height: 60%; border-radius: 4px;"></div>
+                <div style="width: 15%; background: var(--accent); height: 90%; border-radius: 4px;"></div>
+                <div style="width: 15%; background: #333; height: 40%; border-radius: 4px;"></div>
+                <div style="width: 15%; background: #333; height: 20%; border-radius: 4px;"></div>
+            </div>
+        </div>
+
+        <!-- Master Control Footer -->
+        <div class="footer">
+            <button class="play-btn">▶</button>
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                    <span>MASTER</span>
+                    <span>80%</span>
+                </div>
+                <input type="range" value="80" style="width: 100%;">
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

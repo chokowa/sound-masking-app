@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Masking - Cockpit Tabbed</title>
+    <style>
+        :root {
+            --bg-color: #111214;
+            --card-bg: #1d1e22;
+            --card-border: #2e3036;
+            --accent: #ff9f1c;
+            --accent-dim: rgba(255, 159, 28, 0.15);
+            --text: #e1e3e6;
+            --text-muted: #787f8a;
+            --tab-active-bg: #2c2e33;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .device-frame {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Common Components */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 15px;
+            position: relative;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 5px;
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+        }
+
+        .timer {
+            font-family: monospace;
+            font-size: 1rem;
+            color: var(--accent);
+        }
+
+        /* Visualizer & Auto Masking (Common) */
+        .viz-container {
+            height: 120px;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #333;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .viz-bar {
+            width: 6px;
+            background: var(--accent);
+            opacity: 0.5;
+            border-radius: 2px 2px 0 0;
+        }
+
+        .auto-mask-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .status-badge {
+            font-size: 0.65rem;
+            padding: 3px 6px;
+            background: #222;
+            border-radius: 4px;
+            color: #666;
+            border: 1px solid #333;
+        }
+
+        .status-badge.active {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        /* Source Tabs */
+        .tab-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            background: #151619;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .tab:hover {
+            color: var(--text);
+            background: #1a1b1e;
+        }
+
+        .tab.active {
+            color: var(--accent);
+            background: var(--tab-active-bg);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        .tab-content {
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.2s;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Sliders */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .slider-details {
+            width: 60px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .slider-sub {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        input[type=range] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #888;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        input[type=range]:hover::-webkit-slider-thumb {
+            background: var(--accent);
+        }
+
+        /* Environment List */
+        .env-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .env-item {
+            padding: 10px;
+            background: #25262b;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .env-item:hover {
+            background: #2c2e33;
+        }
+
+        .env-item.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+
+        .env-icon {
+            font-size: 1.2rem;
+        }
+
+        .env-name {
+            font-size: 0.8rem;
+        }
+
+        /* EQ (Common) */
+        .eq-mini {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            height: 60px;
+            padding: 0 10px;
+            gap: 5px;
+        }
+
+        .eq-band-wrap {
+            flex: 1;
+            height: 100%;
+            background: #222;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .eq-knob {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: #666;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .eq-freq {
+            text-align: center;
+            font-size: 0.6rem;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        /* Footer */
+        .footer {
+            position: sticky;
+            bottom: 20px;
+            background: rgb(26, 27, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--accent);
+            border-radius: 50px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .play-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .master-slider-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .master-label {
+            font-size: 0.65rem;
+            color: var(--accent);
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+    </style>
+    <script>
+        function switchTab(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+            document.getElementById('content-' + id).classList.add('active');
+        }
+    </script>
+</head>
+
+<body>
+
+    <div class="device-frame">
+
+        <header>
+            <div class="brand">CORE AUDIO</div>
+            <div class="timer">--:--</div>
+        </header>
+
+        <!-- 1. Common Visualizer & Auto Masking -->
+        <div class="card">
+            <div class="card-header">
+                <span>Monitor</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:0.65rem;">AUTO MASK</span>
+                    <div
+                        style="width:24px; height:14px; background:var(--accent); border-radius:7px; position:relative;">
+                        <div
+                            style="width:10px; height:10px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="viz-container">
+                <div class="auto-mask-overlay">
+                    <span class="status-badge active">ADPT</span>
+                    <span class="status-badge">RCTV</span>
+                </div>
+                <!-- Bars -->
+                <div class="viz-bar" style="height: 30%"></div>
+                <div class="viz-bar" style="height: 50%"></div>
+                <div class="viz-bar" style="height: 20%"></div>
+                <div class="viz-bar" style="height: 60%"></div>
+                <div class="viz-bar" style="height: 40%"></div>
+                <div class="viz-bar" style="height: 70%"></div>
+                <div class="viz-bar" style="height: 25%"></div>
+                <div class="viz-bar" style="height: 55%"></div>
+                <div class="viz-bar" style="height: 35%"></div>
+                <div class="viz-bar" style="height: 65%"></div>
+            </div>
+        </div>
+
+        <!-- 2. Source Controller (Tabbed) -->
+        <div class="tab-container">
+            <div class="tabs">
+                <div id="tab-noise" class="tab active" onclick="switchTab('noise')">NOISE GEN</div>
+                <div id="tab-ambiance" class="tab" onclick="switchTab('ambiance')">AMBIANCE</div>
+            </div>
+
+            <!-- NOISE TAB -->
+            <div id="content-noise" class="tab-content tab-pane active">
+                <div class="slider-row">
+                    <div class="slider-details">
+                        White <span class="slider-sub">Airy</span>
+                    </div>
+                    <input type="range" value="10">
+                </div>
+                <div class="slider-row">
+                    <div class="slider-details">
+                        Pink <span class="slider-sub">Balanced</span>
+                    </div>
+                    <input type="range" value="40">
+                </div>
+                <div class="slider-row">
+                    <div class="slider-details">
+                        Brown <span class="slider-sub">Deep</span>
+                    </div>
+                    <input type="range" value="70">
+                </div>
+                <div class="slider-row">
+                    <div class="slider-details">
+                        Sub <span class="slider-sub">Rumble</span>
+                    </div>
+                    <input type="range" value="30">
+                </div>
+            </div>
+
+            <!-- AMBIANCE TAB -->
+            <div id="content-ambiance" class="tab-content tab-pane">
+                <div style="margin-bottom:15px; font-size:0.75rem; color:#666;">SELECT ACTIVE SOUNDSCAPES</div>
+                <div class="env-grid">
+                    <div class="env-item active">
+                        <span class="env-icon">🌧️</span>
+                        <div style="flex:1">
+                            <div class="env-name">Rain (Win)</div>
+                            <div style="height:3px; background:#444; width:100%; margin-top:5px; border-radius:2px;">
+                                <div style="width:70%; background:var(--accent); height:100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="env-item">
+                        <span class="env-icon">🌊</span>
+                        <span class="env-name">Waves</span>
+                    </div>
+                    <div class="env-item">
+                        <span class="env-icon">🚀</span>
+                        <span class="env-name">Space</span>
+                    </div>
+                    <div class="env-item active">
+                        <span class="env-icon">☕</span>
+                        <div style="flex:1">
+                            <div class="env-name">Cafe</div>
+                            <div style="height:3px; background:#444; width:100%; margin-top:5px; border-radius:2px;">
+                                <div style="width:40%; background:var(--accent); height:100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. EQ (Common) -->
+        <div class="card">
+            <div class="card-header">Global EQ</div>
+            <div class="eq-mini">
+                <div class="eq-band-wrap">
+                    <div class="eq-knob" style="bottom: 30%"></div>
+                </div>
+                <div class="eq-band-wrap">
+                    <div class="eq-knob" style="bottom: 50%"></div>
+                </div>
+                <div class="eq-band-wrap">
+                    <div class="eq-knob" style="bottom: 70%"></div>
+                </div>
+                <div class="eq-band-wrap">
+                    <div class="eq-knob" style="bottom: 50%"></div>
+                </div>
+                <div class="eq-band-wrap">
+                    <div class="eq-knob" style="bottom: 40%"></div>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:0 10px;">
+                <span class="eq-freq">60</span>
+                <span class="eq-freq">250</span>
+                <span class="eq-freq">1k</span>
+                <span class="eq-freq">4k</span>
+                <span class="eq-freq">12k</span>
+            </div>
+        </div>
+
+        <!-- Footer Master -->
+        <div class="footer">
+            <button class="play-btn">▶</button>
+            <div class="master-slider-wrap">
+                <div class="master-label">MASTER VOL</div>
+                <input type="range" value="65" style="height:6px;">
+            </div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

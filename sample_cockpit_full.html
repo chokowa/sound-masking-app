@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Masking - Cockpit Full</title>
+    <style>
+        :root {
+            --bg-color: #0f1012;
+            --card-bg: #1a1b1e;
+            --card-border: #2c2e33;
+            --accent-color: #ff9f1c;
+            /* Industrial Orange */
+            --accent-dim: rgba(255, 159, 28, 0.2);
+            --text-main: #e0e0e0;
+            --text-muted: #6c757d;
+            --indicator-green: #2ec4b6;
+            --indicator-red: #e71d36;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            /* padding-bottom for mobile safe area */
+            padding-bottom: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-gap: 12px;
+            grid-auto-rows: min-content;
+        }
+
+        /* Universal Card Style */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card h2 {
+            margin: 0 0 10px 0;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Grid Spans */
+        .col-1 {
+            grid-column: span 1;
+        }
+
+        .col-2 {
+            grid-column: span 2;
+        }
+
+        .col-3 {
+            grid-column: span 3;
+        }
+
+        .col-4 {
+            grid-column: span 4;
+        }
+
+        .row-2 {
+            grid-row: span 2;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+        }
+
+        .brand {
+            font-weight: 700;
+            letter-spacing: 1px;
+            font-size: 1.1rem;
+        }
+
+        .system-status {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--accent-color);
+        }
+
+        /* Visualizer Area */
+        .visualizer-card {
+            height: 120px;
+            padding: 0;
+            background: #000;
+        }
+
+        .viz-canvas {
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+        }
+
+        .overlay-info {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .overlay-indicators {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .indicator-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #333;
+            color: #888;
+        }
+
+        .indicator-badge.active {
+            background: var(--accent-dim);
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+        }
+
+        /* Master Control */
+        .master-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .play-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            border: none;
+            font-size: 1.5rem;
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px var(--accent-dim);
+            transition: transform 0.1s;
+        }
+
+        .play-btn:active {
+            transform: scale(0.95);
+        }
+
+        .master-vol-wrapper {
+            flex: 1;
+        }
+
+        .master-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        /* Noise Mixer */
+        .fader-group {
+            display: flex;
+            justify-content: space-between;
+            height: 140px;
+            padding-top: 10px;
+        }
+
+        .fader-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .fader-label {
+            font-size: 0.65rem;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+        }
+
+        /* Vertical Range Slider */
+        input[type=range].vertical {
+            writing-mode: vertical-lr;
+            /* For Firefox */
+            direction: rtl;
+            -webkit-appearance: slider-vertical;
+            width: 8px;
+            flex: 1;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        /* Chrome Webkit styling for vertical slider is tricky, using transform often better but native vertical support exists now */
+
+        /* Presets */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .preset-btn {
+            background: #25262b;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 10px;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #2c2e33;
+        }
+
+        .preset-btn.active {
+            background: var(--accent-dim);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .preset-icon {
+            font-size: 1.2rem;
+        }
+
+        .preset-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* Soundscapes */
+        .sound-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .sound-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sound-name {
+            font-size: 0.75rem;
+            width: 80px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sound-slider {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            -webkit-appearance: none;
+            background: #333;
+        }
+
+        .sound-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #888;
+            border-radius: 50%;
+        }
+
+        .sound-slider::-webkit-slider-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        /* Auto Masking */
+        .auto-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .toggle-switch {
+            width: 36px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .toggle-switch.active {
+            background: var(--accent-color);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transition: left 0.2s;
+        }
+
+        .toggle-switch.active::after {
+            left: 18px;
+        }
+
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+        }
+
+        .mini-slider {
+            width: 60%;
+            height: 4px;
+            background: #333;
+            -webkit-appearance: none;
+            border-radius: 2px;
+        }
+
+        /* EQ */
+        .eq-group {
+            display: flex;
+            justify-content: space-between;
+            height: 80px;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .eq-bar-wrap {
+            flex: 1;
+            height: 100%;
+            background: #222;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .eq-knob {
+            width: 100%;
+            height: 4px;
+            background: var(--text-muted);
+            position: absolute;
+            top: 50%;
+            /* Center start */
+            cursor: pointer;
+        }
+
+        .eq-label {
+            text-align: center;
+            font-size: 0.6rem;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        /* Timer */
+        .timer-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-align: center;
+            color: var(--text-main);
+            margin: 5px 0;
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+
+        .timer-btn {
+            padding: 4px 10px;
+            background: #333;
+            border: none;
+            color: #ccc;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+
+        .timer-btn:hover {
+            background: #444;
+        }
+
+        /* Footer / About */
+        .footer-info {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #444;
+            margin-top: 10px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .col-3,
+            .col-4 {
+                grid-column: span 2;
+            }
+
+            /* Compress wide items */
+            .fader-group {
+                height: 120px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Header -->
+        <div class="header">
+            <div class="brand">ANTIGRAVITY <span style="font-weight:300">AUDIO</span></div>
+            <div class="system-status">SYS: NORMAL</div>
+        </div>
+
+        <!-- 1. Visualizer & Status -->
+        <div class="card visualizer-card col-4">
+            <div class="overlay-info">
+                <div style="margin-bottom:2px">SPECTRUM_ANALYZER</div>
+                <div style="font-size:0.6rem; opacity:0.6">FFT: 2048</div>
+            </div>
+            <div class="overlay-indicators">
+                <span class="indicator-badge active">ADAPTIVE</span>
+                <span class="indicator-badge">REACTIVE</span>
+                <span class="indicator-badge">MIC</span>
+            </div>
+            <!-- Mock Visualizer using CSS gradients for preview -->
+            <div class="viz-canvas"
+                style="background: linear-gradient(180deg, #000 0%, #111 50%, #1a1a1a 100%); display: flex; align-items: flex-end; justify-content: space-around; padding: 0 5px;">
+                <div style="width:5%; background:#2ec4b6; height:30%; opacity:0.6"></div>
+                <div style="width:5%; background:#2ec4b6; height:50%; opacity:0.7"></div>
+                <div style="width:5%; background:#2ec4b6; height:20%; opacity:0.5"></div>
+                <div style="width:5%; background:#2ec4b6; height:70%; opacity:0.8"></div>
+                <div style="width:5%; background:#2ec4b6; height:40%; opacity:0.6"></div>
+                <div style="width:5%; background:#2ec4b6; height:60%; opacity:0.75"></div>
+                <div style="width:5%; background:#2ec4b6; height:80%; opacity:0.9"></div>
+                <div style="width:5%; background:#2ec4b6; height:35%; opacity:0.6"></div>
+                <div style="width:5%; background:#2ec4b6; height:55%; opacity:0.7"></div>
+                <div style="width:5%; background:#2ec4b6; height:25%; opacity:0.5"></div>
+            </div>
+        </div>
+
+        <!-- 2. Master Control -->
+        <div class="card col-4 master-control" style="background: linear-gradient(90deg, #1c1d21 0%, #161719 100%);">
+            <button class="play-btn">▶</button>
+            <div class="master-vol-wrapper">
+                <div class="master-label">
+                    <span>MASTER OUTPUT</span>
+                    <span style="color:var(--accent-color); font-weight:bold;">-6.0 dB</span>
+                </div>
+                <input type="range"
+                    style="width:100%; height:6px; accent-color:var(--accent-color); background:#333; border-radius:3px; -webkit-appearance:none;"
+                    value="80">
+            </div>
+        </div>
+
+        <!-- 3. Noise Mixer (Vertical Faders) -->
+        <div class="card col-2 row-2">
+            <h2>NOISE MIXER <span style="font-size:0.6rem">v2.0</span></h2>
+            <div class="fader-group">
+                <div class="fader-col">
+                    <input type="range" class="vertical" min="0" max="100" value="0">
+                    <div class="fader-label">White</div>
+                </div>
+                <div class="fader-col">
+                    <input type="range" class="vertical" min="0" max="100" value="40">
+                    <div class="fader-label">Pink</div>
+                </div>
+                <div class="fader-col">
+                    <input type="range" class="vertical" min="0" max="100" value="80">
+                    <div class="fader-label">Brown</div>
+                </div>
+                <div class="fader-col">
+                    <input type="range" class="vertical" min="0" max="100" value="60">
+                    <div class="fader-label">Deep</div>
+                </div>
+                <div class="fader-col">
+                    <input type="range" class="vertical" min="0" max="100" value="20">
+                    <div class="fader-label">Sub</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Presets -->
+        <div class="card col-2" style="height: 160px; overflow-y:auto;">
+            <h2>QUICK PRESETS</h2>
+            <div class="preset-grid">
+                <div class="preset-btn active">
+                    <span class="preset-icon">☕</span>
+                    <span class="preset-name">Cafe</span>
+                </div>
+                <div class="preset-btn">
+                    <span class="preset-icon">🎯</span>
+                    <span class="preset-name">Focus</span>
+                </div>
+                <div class="preset-btn">
+                    <span class="preset-icon">💤</span>
+                    <span class="preset-name">Sleep</span>
+                </div>
+                <div class="preset-btn">
+                    <span class="preset-icon">👂</span>
+                    <span class="preset-name">Tinnitus</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Soundscapes -->
+        <div class="card col-2" style="height: 160px;">
+            <h2>SOUNDSCAPES</h2>
+            <div class="sound-list">
+                <div class="sound-row">
+                    <div class="sound-name">Rain (Win)</div>
+                    <input type="range" class="sound-slider" value="50">
+                </div>
+                <div class="sound-row">
+                    <div class="sound-name">Underwater</div>
+                    <input type="range" class="sound-slider" value="20">
+                </div>
+                <div class="sound-row">
+                    <div class="sound-name">Spaceship</div>
+                    <input type="range" class="sound-slider" value="0">
+                </div>
+                <div class="sound-row">
+                    <div class="sound-name">Forest</div>
+                    <input type="range" class="sound-slider" value="0">
+                </div>
+                <div class="sound-row">
+                    <div class="sound-name">Waves</div>
+                    <input type="range" class="sound-slider" value="0">
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Auto Masking -->
+        <div class="card col-2">
+            <div class="auto-header">
+                <h2>AUTO MASK</h2>
+                <div class="toggle-switch active"></div>
+            </div>
+            <div class="param-row">
+                <span>Sensitivity</span>
+                <input type="range" class="mini-slider" value="70">
+            </div>
+            <div class="param-row">
+                <span>Reaction Speed</span>
+                <input type="range" class="mini-slider" value="40">
+            </div>
+            <div class="param-row">
+                <span>Target Band</span>
+                <select style="background:#222; color:#ccc; border:1px solid #444; font-size:0.7rem;">
+                    <option>All Freq</option>
+                    <option>Voice</option>
+                    <option>Impact</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 7. Timer -->
+        <div class="card col-2">
+            <h2>SLEEP TIMER</h2>
+            <div class="timer-display">45:00</div>
+            <div class="timer-controls">
+                <button class="timer-btn">+15m</button>
+                <button class="timer-btn">+30m</button>
+                <button class="timer-btn" style="color:var(--accent-color)">SET</button>
+            </div>
+        </div>
+
+        <!-- 8. EQ -->
+        <div class="card col-4">
+            <h2>5-BAND EQUALIZER</h2>
+            <div class="eq-group">
+                <div class="eq-bar-wrap">
+                    <div class="eq-knob" style="top: 30%;"></div>
+                    <div style="position:absolute; bottom:0; width:100%; height:4px; background:#444;"></div>
+                </div>
+                <div class="eq-bar-wrap">
+                    <div class="eq-knob" style="top: 45%;"></div>
+                    <div style="position:absolute; bottom:0; width:100%; height:4px; background:#444;"></div>
+                </div>
+                <div class="eq-bar-wrap">
+                    <div class="eq-knob" style="top: 50%;"></div>
+                    <div style="position:absolute; bottom:0; width:100%; height:4px; background:#444;"></div>
+                </div>
+                <div class="eq-bar-wrap">
+                    <div class="eq-knob" style="top: 55%;"></div>
+                    <div style="position:absolute; bottom:0; width:100%; height:4px; background:#444;"></div>
+                </div>
+                <div class="eq-bar-wrap">
+                    <div class="eq-knob" style="top: 60%;"></div>
+                    <div style="position:absolute; bottom:0; width:100%; height:4px; background:#444;"></div>
+                </div>
+            </div>
+            <div
+                style="display:flex; justify-content:space-around; width:100%; color:#555; font-size:0.6rem; margin-top:4px;">
+                <span>60</span><span>250</span><span>1k</span><span>4k</span><span>12k</span>
+            </div>
+        </div>
+
+        <div class="footer-info">
+            ANTIGRAVITY AUDIO ENGINE v3.0 | MASKING DENSITY: 12%
+        </div>
+
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Masking - Minimal</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: #f5f5f5;
+            color: #333;
+            font-family: 'Courier New', monospace;
+            /* Typewriter style */
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 40px;
+            font-weight: normal;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: block;
+            color: #666;
+        }
+
+        .value-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: none;
+            border: 1px solid #333;
+            padding: 10px 20px;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        button.active {
+            background: #333;
+            color: #fff;
+        }
+
+        /* Single slider line */
+        input[type=range] {
+            width: 100%;
+            height: 2px;
+            background: #ccc;
+            appearance: none;
+            margin: 20px 0;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #333;
+            border-radius: 0;
+        }
+
+        .grid-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .option {
+            border: 1px solid #ccc;
+            padding: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .option.selected {
+            border-color: #333;
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>SOUND MASKING.</h1>
+
+        <div class="section">
+            <span class="label">MODE SELECTION</span>
+            <div class="grid-options">
+                <div class="option selected">NOISE</div>
+                <div class="option">NATURE</div>
+                <div class="option">SILENCE</div>
+                <div class="option">HYBRID</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <span class="label">MASTER VOLUME</span>
+            <div class="value-display">
+                <span>42%</span>
+            </div>
+            <input type="range" value="42">
+        </div>
+
+        <div class="section">
+            <span class="label">STATUS</span>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>ADAPTIVE: ACTIVE</span>
+                <button class="active">STOP</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

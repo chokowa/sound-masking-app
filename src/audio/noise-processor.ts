@@ -15,12 +15,23 @@ class NoiseProcessor extends AudioWorkletProcessor {
   // Dark Brown用の状態変数
   private lastDark = 0;
 
+  // Rumble用の状態変数 (Oscillators)
+  private rumblePhase1 = 0;
+  private rumblePhase2 = 0;
+  private rumblePhase3 = 0;
+  private rumbleModPhase = 0; // AM変調用
+
+
+
   static get parameterDescriptors() {
     return [
       { name: 'whiteGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'pinkGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'brownGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'darkGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'rumbleGain', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+      { name: 'rumbleFreq', defaultValue: 55, minValue: 20, maxValue: 300, automationRate: 'k-rate' }, // New
+      { name: 'rumbleSpeed', defaultValue: 1, minValue: 0.1, maxValue: 10, automationRate: 'k-rate' }, // New
       { name: 'masterGain', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'a-rate' }
     ];
   }
@@ -31,6 +42,9 @@ class NoiseProcessor extends AudioWorkletProcessor {
     const pinkGainParam = parameters['pinkGain'];
     const brownGainParam = parameters['brownGain'];
     const darkGainParam = parameters['darkGain'];
+    const rumbleGainParam = parameters['rumbleGain'];
+    const rumbleFreqParam = parameters['rumbleFreq']; // New
+    const rumbleSpeedParam = parameters['rumbleSpeed']; // New
     const masterGainParam = parameters['masterGain'];
 
     // k-rateパラメータの取得（先頭値）
@@ -38,17 +52,36 @@ class NoiseProcessor extends AudioWorkletProcessor {
     const pGain = pinkGainParam[0];
     const bGain = brownGainParam[0];
     const dGain = darkGainParam[0];
+    const rGain = rumbleGainParam[0];
+    const rFreq = rumbleFreqParam[0];
+    const rSpeed = rumbleSpeedParam[0];
+
 
     // 全て0なら処理スキップ（最適化）
-    if (wGain === 0 && pGain === 0 && bGain === 0 && dGain === 0) {
+    if (wGain === 0 && pGain === 0 && bGain === 0 && dGain === 0 && rGain === 0) {
       output.forEach(channel => channel.fill(0));
+
       return true;
     }
 
     // チャンネルごとに処理
     output.forEach((channel) => {
+      const sampleRate = globalThis.sampleRate || 44100;
+      const shouldUseArray = masterGainParam.length > 1;
+
+      // Phase increments for rumble (calculated once per channel block)
+      // Osc 1: Main (x1.0)
+      // Osc 2: Sub1 (x1.13)
+      // Osc 3: Sub2 (x1.31)
+      const inc1 = (2 * Math.PI * rFreq) / sampleRate;
+      const inc2 = (2 * Math.PI * rFreq * 1.13) / sampleRate;
+      const inc3 = (2 * Math.PI * rFreq * 1.31) / sampleRate;
+
+      // AM Modulation increment
+      const modInc = (2 * Math.PI * rSpeed) / sampleRate;
+
       for (let i = 0; i < channel.length; i++) {
-        const mGain = masterGainParam.length > 1 ? masterGainParam[i] : masterGainParam[0];
+        const mGain = shouldUseArray ? masterGainParam[i] : masterGainParam[0];
 
         // White Noise Source
         const white = Math.random() * 2 - 1;
@@ -89,6 +122,31 @@ class NoiseProcessor extends AudioWorkletProcessor {
         if (dGain > 0) {
           // エネルギーが低域に集中するため振幅が大きくなりやすいので補正
           mixedOutput += (darkUpdate * 4.0) * dGain;
+        }
+
+        // 5. Rumble (Dynamic Sub-Bass)
+        if (rGain > 0) {
+          this.rumblePhase1 += inc1;
+          this.rumblePhase2 += inc2;
+          this.rumblePhase3 += inc3;
+
+          if (this.rumblePhase1 > 2 * Math.PI) this.rumblePhase1 -= 2 * Math.PI;
+          if (this.rumblePhase2 > 2 * Math.PI) this.rumblePhase2 -= 2 * Math.PI;
+          if (this.rumblePhase3 > 2 * Math.PI) this.rumblePhase3 -= 2 * Math.PI;
+
+          // AM Mod Phase update
+          this.rumbleModPhase += modInc;
+          if (this.rumbleModPhase > 2 * Math.PI) this.rumbleModPhase -= 2 * Math.PI;
+
+          let rumble = Math.sin(this.rumblePhase1) * 0.5 +
+            Math.sin(this.rumblePhase2) * 0.3 +
+            Math.sin(this.rumblePhase3) * 0.2;
+
+          // Apply AM Modulation (0.7 ~ 1.3 depth)
+          const mod = 1.0 + Math.sin(this.rumbleModPhase) * 0.3;
+          rumble *= mod;
+
+          mixedOutput += rumble * rGain * 0.8;
         }
 
         channel[i] = mixedOutput * mGain;

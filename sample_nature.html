@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Masking - Nature Style</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #2b5876 0%, #4e4376 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text: #fff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-gradient);
+            color: var(--text);
+            font-family: 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .mobile-frame {
+            width: 100%;
+            max-width: 375px;
+            height: 90vh;
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Background Animation layer */
+        .ambient-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 30%, rgba(76, 201, 240, 0.4), transparent 60%);
+            z-index: -1;
+            animation: breathe 8s infinite alternate;
+        }
+
+        @keyframes breathe {
+            0% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        header {
+            padding: 24px;
+            text-align: center;
+        }
+
+        h1 {
+            font-weight: 200;
+            letter-spacing: 1px;
+            font-size: 1.2rem;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        /* Circle Control */
+        .circle-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .main-circle {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .play-icon {
+            font-size: 3rem;
+            opacity: 0.9;
+        }
+
+        .volume-label {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        /* Bottom Sheet */
+        .drawer {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px 20px 0 0;
+            padding: 24px;
+            backdrop-filter: blur(20px);
+        }
+
+        .drawer-handle {
+            width: 40px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            margin: 0 auto 20px auto;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            text-align: center;
+        }
+
+        .menu-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            opacity: 1;
+        }
+
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            background: var(--glass-bg);
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            border: 1px solid var(--glass-border);
+        }
+
+        .menu-label {
+            font-size: 0.7rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="mobile-frame">
+        <div class="ambient-bg"></div>
+
+        <header>
+            <h1>Focus Flow</h1>
+        </header>
+
+        <div class="circle-container">
+            <!-- Main interaction area -->
+            <div class="main-circle">
+                <div class="play-icon">▶</div>
+                <div class="volume-label">Master 65%</div>
+            </div>
+        </div>
+
+        <!-- Drawer / Controls -->
+        <div class="drawer">
+            <div class="drawer-handle"></div>
+
+            <div class="menu-grid">
+                <div class="menu-item" style="opacity: 1;">
+                    <div class="icon-box">🎚️</div>
+                    <span class="menu-label">Mixer</span>
+                </div>
+                <div class="menu-item">
+                    <div class="icon-box">🌊</div>
+                    <span class="menu-label">Nature</span>
+                </div>
+                <div class="menu-item">
+                    <div class="icon-box">🔊</div>
+                    <span class="menu-label">EQ</span>
+                </div>
+                <div class="menu-item">
+                    <div class="icon-box">⚙️</div>
+                    <span class="menu-label">Settings</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

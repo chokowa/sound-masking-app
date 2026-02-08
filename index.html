@@ -13,7 +13,15 @@
 
 <body>
   <div id="app">
-    <h1>Sound Masking</h1>
+    <div class="app-header">
+      <h1>Sound Masking</h1>
+      <div class="header-controls">
+        <button id="meister-btn" class="icon-btn meister-btn" title="Noise Meister Mode">
+          🛡️ Meister
+        </button>
+      </div>
+    </div>
+
     <div class="card">
       <button id="start-btn">Start</button>
       <button id="stop-btn" disabled>Stop</button>
@@ -134,16 +142,53 @@
           <span class="mixer-value" id="val-dark">0%</span>
         </div>
 
-        <!-- Sub-Bass (New) -->
+        <!-- Tone (Sub-Bass) -->
         <div class="mixer-channel subbass">
           <div class="mixer-label-group">
-            <span class="mixer-label">Sub</span>
-            <span class="mixer-sublabel">Vibration</span>
+            <span class="mixer-label">Tone</span>
+            <span class="mixer-sublabel">Freq Control</span>
           </div>
           <div class="mixer-slider-wrapper">
+            <!-- ID must match main.ts: mix-sub -->
             <input type="range" class="mixer-slider" id="mix-sub" min="0" max="1" step="0.01" value="0" />
           </div>
           <span class="mixer-value" id="val-sub">0%</span>
+          <!-- Tone Frequency -->
+          <div class="freq-control"
+            style="margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+            <span style="font-size: 0.7em; color: #888;">Freq:</span>
+            <input type="range" id="sub-freq" class="small-slider" min="40" max="200" step="1" value="55"
+              style="width: 60px;">
+            <span id="val-sub-freq" style="font-size: 0.7em; width: 35px; text-align: right;">55Hz</span>
+          </div>
+        </div>
+
+        <!-- Rumble -->
+        <div class="mixer-channel rumble">
+          <div class="mixer-label-group">
+            <span class="mixer-label">Rumble</span>
+            <span class="mixer-sublabel">Earthquake</span>
+          </div>
+          <div class="mixer-slider-wrapper">
+            <input type="range" class="mixer-slider" id="mix-rumble" min="0" max="1" step="0.01" value="0" />
+            <div class="mixer-warning" title="Speaker/Headphones Recommended">🎧 Rec.</div>
+          </div>
+          <span class="mixer-value" id="val-rumble">0%</span>
+          <!-- Rumble Controls -->
+          <div class="freq-control" style="margin-top: 5px; display: flex; flex-direction: column; gap: 2px;">
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 5px;">
+              <span style="font-size: 0.7em; color: #888;">Freq:</span>
+              <input type="range" id="rumble-freq" class="small-slider" min="40" max="250" step="1" value="55"
+                style="width: 60px;">
+              <span id="val-rumble-freq" style="font-size: 0.7em; width: 35px; text-align: right;">55Hz</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 5px;">
+              <span style="font-size: 0.7em; color: #888;">Spd:</span>
+              <input type="range" id="rumble-speed" class="small-slider" min="0.1" max="5.0" step="0.1" value="1.0"
+                style="width: 60px;">
+              <span id="val-rumble-speed" style="font-size: 0.7em; width: 35px; text-align: right;">1.0Hz</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -525,6 +570,83 @@
       <p>Status: <span id="status">Ready</span></p>
     </div>
   </div><!-- End of #app -->
+  <!-- Meister Wizard Overlay -->
+  <div id="meister-overlay" class="meister-overlay">
+    <div class="meister-container">
+      <button id="meister-close" class="meister-close-btn">×</button>
+
+
+      <!-- Scene 1: Target Selection -->
+      <div class="meister-scene active" id="scene-target">
+        <h2>What is bothering you?</h2>
+        <div class="target-grid">
+          <button class="target-icon" data-target="footsteps">
+            <span class="icon">👣</span>
+            <span class="label">Footsteps</span>
+          </button>
+          <button class="target-icon" data-target="voices">
+            <span class="icon">🗣️</span>
+            <span class="label">Voices</span>
+          </button>
+          <button class="target-icon" data-target="traffic">
+            <span class="icon">🚗</span>
+            <span class="label">Traffic</span>
+          </button>
+          <button class="target-icon" data-target="tinnitus">
+            <span class="icon">👂</span>
+            <span class="label">Tinnitus</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scene 2: Simulation Tuning -->
+      <div class="meister-scene" id="scene-tuning">
+        <h2>Reproduce the Noise</h2>
+        <p>Adjust the sliders to match the noise you hear.</p>
+
+        <div class="tuning-controls">
+          <div class="tuning-group">
+            <label>Pitch (Height)</label>
+            <input type="range" id="sim-pitch" min="0" max="100" value="50">
+            <div class="tuning-labels"><span>Low (Deep)</span><span>High (Light)</span></div>
+          </div>
+          <div class="tuning-group">
+            <label>Sharpness (Attack)</label>
+            <input type="range" id="sim-sharpness" min="0" max="100" value="50">
+            <div class="tuning-labels"><span>Soft (Dull)</span><span>Sharp (Hard)</span></div>
+          </div>
+          <div class="tuning-group">
+            <label>Resonance (Decay)</label>
+            <input type="range" id="sim-resonance" min="0" max="100" value="50">
+            <div class="tuning-labels"><span>Dry (Tight)</span><span>Boomy (Long)</span></div>
+          </div>
+        </div>
+
+        <div class="scene-actions">
+          <button class="meister-prev-btn">Back</button>
+          <button class="meister-next-btn primary" id="btn-mask-it">🛡️ MASK IT!</button>
+        </div>
+      </div>
+
+      <!-- Scene 3: Countermeasure -->
+      <div class="meister-scene" id="scene-counter">
+        <h2>Optimization Complete</h2>
+        <p>Here is your custom shield.</p>
+
+        <div class="result-preview">
+          <!-- Visualizer area or simple icon -->
+          <div class="shield-icon">🛡️</div>
+        </div>
+
+        <div class="scene-actions">
+          <button class="meister-prev-btn">Back</button>
+          <button class="meister-next-btn primary" id="btn-save-neister">Save & Apply</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 
