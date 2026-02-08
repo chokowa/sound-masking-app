@@ -65,8 +65,9 @@ class NoiseProcessor extends AudioWorkletProcessor {
     }
 
     // チャンネルごとに処理
+    const sampleRate = (globalThis as any).sampleRate || 44100;
+
     output.forEach((channel) => {
-      const sampleRate = globalThis.sampleRate || 44100;
       const shouldUseArray = masterGainParam.length > 1;
 
       // Phase increments for rumble (calculated once per channel block)
